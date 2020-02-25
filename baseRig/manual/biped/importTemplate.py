@@ -20,7 +20,7 @@ class importTemplate():
 
     def simpleBiped(self):
 
-        cmds.file ("C:\tools\tools\manual\biped\template\simpleBiped.mb",i=True , loadReferenceDepth= "all")
+        cmds.file ("C:\tools\tools\baseRig\manual\biped\template\simpleBiped.mb",i=True , loadReferenceDepth= "all")
 
         cmds.parent ('C_template_hip_JNT','L_template_shoulder_JNT','R_template_shoulder_JNT',
         'R_template_upArm_JNT','L_template_upArm_JNT','C_template_neck_JNT','L_template_leg_JNT',
