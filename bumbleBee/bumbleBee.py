@@ -24,11 +24,11 @@ from manual.biped.poleVec_fix import*
 from manual.biped.addRigCommand import *
 from manual.biped.softStretchIK_set import *
 
-from util.zeroOut import *
-from util.controller import *
-from util.undoCommand import undo
-from util.path_rig import *
-from util.spaceBlend import *
+from baseRig.util.zeroOut import *
+from baseRig.util.controller import *
+from baseRig.util.undoCommand import undo
+from baseRig.util.path_rig import *
+from baseRig.util.spaceBlend import *
 
 import json
 import sys

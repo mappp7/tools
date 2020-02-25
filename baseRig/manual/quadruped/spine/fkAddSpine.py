@@ -1,7 +1,7 @@
-from util.fkControllerMaker import *
-from util.snap import *
-from util.homeNul import *
-from util.attach import *
+from baseRig.util.fkControllerMaker import *
+from baseRig.util.snap import *
+from baseRig.util.homeNul import *
+from baseRig.util.attach import *
 
 fkSpineJointList = [ 'C_FKsub_spine1_NUL', 'C_FKsub_spine2_NUL', 'C_FKsub_spine3_NUL', 'C_FKsub_chest_NUL' ]
 

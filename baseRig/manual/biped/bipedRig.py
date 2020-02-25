@@ -6,12 +6,12 @@
 
 import maya.cmds as cmds
 import maya.mel as mel
-from util.defaultGroupNode import*
-from util.setUniqueName import*
-from util.homeNul import*
-from util.attach import*
-from util.spaceBlend import*
-from util.setPublishPose import*
+from baseRig.util.defaultGroupNode import*
+from baseRig.util.setUniqueName import*
+from baseRig.util.homeNul import*
+from baseRig.util.attach import*
+from baseRig.util.spaceBlend import*
+from baseRig.util.setPublishPose import*
 
 from manual.biped.setSpine import *
 from manual.biped.setShoulder import *

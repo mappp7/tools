@@ -6,7 +6,7 @@
 
 import maya.cmds as cmds
 import maya.mel as mel
-from util.controller import *
+from baseRig.util.controller import *
 
 class defaultGroupNode():
 
