@@ -14,7 +14,7 @@ import os
 import site
 import maya.cmds as cmds
 import maya.OpenMayaUI as omui
-import maya.mel as mel 
+import maya.mel as mel
 import json
 # add sysPath
 #site.addsitedir('/dexter/Cache_DATA/CRT/RiggingRnD/baseRig/')
@@ -27,8 +27,8 @@ from Qt.QtGui import *
 from Qt.QtCore import *
 from Qt.QtWidgets import *
 
-from util.undoCommand import undo 
-from util.homeNul import*
+from baseRig.util.undoCommand import undo
+from baseRig.util.homeNul import*
 
 # ui Path Setting
 basePath = os.path.abspath( __file__ + '/../' )
@@ -40,7 +40,7 @@ def maya_main_window():
     '''
     Return the Maya main window widget as a Python object
     '''
-    main_window_ptr = omui.MQtUtil.mainWindow()
+    main_window_ptr = omui.MQtbaseRig.util.mainWindow()
     return wrapInstance(long(main_window_ptr), QtGui.QWidget)
 
 class uiMainWindow( QtWidgets.QMainWindow ):
@@ -81,7 +81,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
             eval( "self.ui.conMake_%s_BTN.clicked.connect(self.controllerMake)" %self.con_Make )
 
     def makerIcon(self):
-        setIconPath = '/dexter/Cache_DATA/CRT/riggingTeamShelf/controllerMaker/icon/'
+        setIconPath = 'C:/tools/tools/controllerMaker/icon/'
         self.ui.conMake_01_BTN.setIcon(QtGui.QIcon('%sbox.jpg' %setIconPath))
         self.ui.conMake_02_BTN.setIcon(QtGui.QIcon('%scircle.jpg' %setIconPath))
         self.ui.conMake_03_BTN.setIcon(QtGui.QIcon('%svolumeCircle.jpg' %setIconPath))
@@ -119,7 +119,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         sel_name = cmds.ls(sl=True)
         for i in sel_name:
             if self.ui.viewPort_CKB.isChecked() == True:
-                try: 
+                try:
                     if cmds.listRelatives( i, s=True )[0] != None:
                         sel_Shape = cmds.listRelatives( i, s=True )[0]
                         cmds.setAttr("%s.overrideEnabled" %sel_Shape, 1)
@@ -153,13 +153,13 @@ class uiMainWindow( QtWidgets.QMainWindow ):
                    19:[0.1022, 0.7157, 1.0000],
                    20:[0.0561, 1.0000, 0.3613],
                    21:[1.0000, 0.4286, 0.4286],
-                   22:[0.923, 0.495, 0.230],   
-                   23:[1.0000, 1.0000, 0.1221],  
-                   24:[0, 0.685, 0.186],  
-                   25:[0.715, 0.443, 0.0],   
-                   26:[0.677, 0.696, 0.058],  
-                   27:[0.274, 0.696, 0.058],  
-                   28:[0.047, 0.552, 0.171],  
+                   22:[0.923, 0.495, 0.230],
+                   23:[1.0000, 1.0000, 0.1221],
+                   24:[0, 0.685, 0.186],
+                   25:[0.715, 0.443, 0.0],
+                   26:[0.677, 0.696, 0.058],
+                   27:[0.274, 0.696, 0.058],
+                   28:[0.047, 0.552, 0.171],
                    29:[0.060, 0.713, 0.713],
                    30:[0.074, 0.341, 0.884],
                    31:[0.477, 0.151, 0.851],
@@ -171,7 +171,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         sel_name = cmds.ls(sl=True)
         for i in sel_name:
             if self.ui.viewPort_CKB.isChecked() == True:
-                try: 
+                try:
                     sel_Shape = cmds.listRelatives( i, s=True )[0]
                     cmds.setAttr("%s.overrideEnabled" %sel_Shape, 0)
                 except:
@@ -296,7 +296,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
             cmds.parent(tempMirrorJoint , w=True)
             cmds.parent(i , tempMirrorJoint)
             self.mirrorJointList.append(tempMirrorJoint)
-        #  미러조인트 방법이랑 방향 가져와서 세팅     
+        #  미러조인트 방법이랑 방향 가져와서 세팅
         buttonXYZ = self.sender()
         btn = buttonXYZ.objectName()
         btn_XYZ = btn.split('_')
@@ -341,7 +341,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
                 cmds.rotate(0,90,0,r=True,os =True)
             elif btn_XYZ[1] == 'Z':
                 cmds.rotate(0,0,90,r=True,os =True)
-        cmds.select(cl=True)      
+        cmds.select(cl=True)
         for i in sel:
             cmds.select(i,tgl=True)
 
@@ -351,7 +351,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         btn = buttonHandle.objectName()
         btn_number = btn.split('_')
         n = btn_number[1]
-        if len(temp_sel) >= 1: 
+        if len(temp_sel) >= 1:
             for i in range(len(temp_sel)):
                 self.chooseConShape(n)
                 selMakeCON = cmds.ls(sl=True)
@@ -362,18 +362,18 @@ class uiMainWindow( QtWidgets.QMainWindow ):
             self.chooseConShape(n)
             #selMakeCON = cmds.ls(sl=True)
             self.homeNull()
-        
+
     def chooseConShape(self,number):
         # box
-        n = number 
+        n = number
         if n == '01':
             mel.eval('curve -d 1 -p 0.5 0.5 0.5 -p 0.5 0.5 -0.5 -p -0.5 0.5 -0.5 -p -0.5 -0.5 -0.5 -p 0.5 -0.5 -0.5 -p 0.5 0.5 -0.5 -p -0.5 0.5 -0.5 -p -0.5 0.5 0.5 -p 0.5 0.5 0.5 -p 0.5 -0.5 0.5 -p 0.5 -0.5 -0.5 -p -0.5 -0.5 -0.5 -p -0.5 -0.5 0.5 -p 0.5 -0.5 0.5 -p -0.5 -0.5 0.5  -p -0.5 0.5 0.5 -k 0 -k 1 -k 2 -k 3 -k 4 -k 5 -k 6 -k 7 -k 8 -k 9 -k 10 -k 11 -k 12 -k 13 -k 14 -k 15;')
             self.CON_name = 'box'
-        # circle 
+        # circle
         elif n == '02':
             mel.eval('circle -c 0 0 0 -nr 0 1 0 -sw 360 -r 0.5 -d 3 -ut 0 -tol 0.01 -s 8 -ch 0')
             self.CON_name = 'circle'
-        # volume circle  
+        # volume circle
         elif n == '03':
             mel.eval('curve -d 1 -p -0.504004 -0.0167178 -1.8995e-06 -p -0.486389 -0.0167178 0.130304 -p -0.436069 -0.0167178 0.251787 -p -0.356385 -0.0167178 0.356383 -p -0.251789 -0.0167178 0.436067 -p -0.130306 -0.0167178 0.486387 -p 0 -0.0167178 0.504002 -p 0.130306 -0.0167178 0.486387 -p 0.251789 -0.0167178 0.436067 -p 0.356385 -0.0167178 0.356383 -p 0.436069 -0.0167178 0.251787 -p 0.486389 -0.0167178 0.130304 -p 0.504004 -0.0167178 -1.8995e-06  -p 0.486389 -0.0167178 -0.130308 -p 0.436069 -0.0167178 -0.251791 -p 0.356385 -0.0167178 -0.356387 -p 0.251789 -0.0167178 -0.436071 -p 0.130306 -0.0167178 -0.486392 -p 0 -0.0167178 -0.504002 -p -0.130306 -0.0167178 -0.486392 -p -0.251789 -0.0167178 -0.436071 -p -0.356385 -0.0167178 -0.356387 -p -0.436069 -0.0167178 -0.251791 -p -0.486389 -0.0167178 -0.130308 -p -0.504004 -0.0167178 -1.8995e-06 -p -0.504004 0.0167178 -1.8995e-06 -p -0.486389 0.0167178 0.130304 -p -0.436069 0.0167178 0.251787 -p -0.356385 0.0167178 0.356383 -p -0.251789 0.0167178 0.436067 -p -0.130306 0.0167178 0.486387 -p 0 0.0167178 0.504002 -p 0 -0.0167178 0.504002 -p 0 0.0167178 0.504002 -p 0.130306 0.0167178 0.486387 -p 0.251789 0.0167178 0.436067 -p 0.356385 0.0167178 0.356383 -p 0.436069 0.0167178 0.251787 -p 0.486389 0.0167178 0.130304 -p 0.504004 0.0167178 -1.8995e-06 -p 0.504004 -0.0167178 -1.8995e-06 -p 0.504004 0.0167178 -1.8995e-06 -p 0.486389 0.0167178 -0.130308 -p 0.436069 0.0167178 -0.251791 -p 0.356385 0.0167178 -0.356387 -p 0.251789 0.0167178 -0.436071 -p 0.130306 0.0167178 -0.486392 -p 0 0.0167178 -0.504002 -p 0 -0.0167178 -0.504002 -p 0 0.0167178 -0.504002 -p -0.130306 0.0167178 -0.486392 -p -0.251789 0.0167178 -0.436071 -p -0.356385 0.0167178 -0.356387 -p -0.436069 0.0167178 -0.251791 -p -0.486389 0.0167178 -0.130308 -p -0.504004 0.0167178 -1.8995e-06 -p -0.504004 -0.0167178 -1.8995e-06 -p -0.504004 0.0167178 -1.8995e-06;')
             self.CON_name = 'volume circle  '
@@ -459,7 +459,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         # # box2
         # elif n == '28':
         #     cmds.curve( d=1, p =[(-1,-1,-1),(-1,-1,1),(1,-1,1),(1,-1,-1),(-1,-1,-1),(-1,1,-1),(-1,1,1),(-1,-1,1),(1,-1,1),(1,1,1),(-1,1,1),(-1,1,-1),(1,1,-1),(1,1,1),(1,-1,1),(1,-1,-1),(1,1,-1)], k =[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16] )
-        
+
     def curveClear(self):
         self.CON_name = 'Controller Maker'
         del self.temp_CON[0:len(self.temp_CON)]
@@ -484,7 +484,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         cvCountList = []
         for i in range(len(selCurveShape)):
             if cmds.getAttr('%s.f' %selCurveShape[i])==2:
-                cvCount = cmds.getAttr( '%s.spans' %selCurveShape[i]) 
+                cvCount = cmds.getAttr( '%s.spans' %selCurveShape[i])
             else:
                 cvCount = cmds.getAttr( '%s.spans' %selCurveShape[i]) + cmds.getAttr( '%s.degree' % selCurveShape[i] )
             cvCountList.append( cvCount )
@@ -494,7 +494,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
             for cvNum in range( cvCountList[count]):
                 cvPosition = cmds.pointPosition( '%s.cv[%s]' %( selCurveShape[count], cvNum ) ,l=True)
                 self.curveDic[selCurveShape[count]][cvNum] = cvPosition
-            count = count + 1 
+            count = count + 1
 
     def exportCON_JSON(self):
         self.setFilename()
@@ -503,7 +503,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         # write
         F = open( filePath, 'w' )
         F.write(json.dumps( self.curveDic, indent = 4 ))
-        F.close() 
+        F.close()
         QtWidgets.QMessageBox.information(self, "Done", 'Your curves exported here. "%s"' %filePath,
                                       QtWidgets.QMessageBox.Ok)
 
@@ -515,7 +515,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         # load
         F = open( str(filePath[0]) )
         self.loadedData = json.load( F )
-        F.close() 
+        F.close()
         jsonKeys = self.loadedData.keys()
         for i in jsonKeys:
             curveShapeKeys = self.loadedData[i].keys()
