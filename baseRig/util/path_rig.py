@@ -1,16 +1,16 @@
 import maya.cmds as cmds
-from util.defaultGroupNode import *
-from util.zeroOut import *
-from util.controller import *
+from baseRig.util.defaultGroupNode import *
+from baseRig.util.zeroOut import *
+from baseRig.util.controller import *
 
 ####### C A U T I O N #######
 # check model's ahead direction. Need to ahead Z direction.
 # This tool need "curveLength2ParamU" python api plug-in.
 
 class path_rig():
-    
+
     def __init__(self):
-        
+
         self.disDMS = list()
         self.IKcurveAttatchLOC = list()
         self.IKcurveAttatchNUL = list()
@@ -25,16 +25,16 @@ class path_rig():
         self.xyz = ['x','y','z']
         self.XYZ = ['X','Y','Z']
 
-    def rotateController(self,sel): # util --- control rotate 
+    def rotateController(self,sel): # baseRig.util --- control rotate
         for i in sel:
             curveName = i
             curveShape = cmds.listRelatives( curveName, s=True )[0]
             cvNum = cmds.getAttr( '%s.spans' % curveShape ) + cmds.getAttr( '%s.degree' % curveShape )
             cmds.select( "%s.cv[0:%s]" %(curveName,cvNum))
             cmds.rotate(90,0,0,r=True,os=True)
-        cmds.select(cl=True) 
+        cmds.select(cl=True)
 
-    def setRigGroupStructure(self):  # util --- rig hierachy structure set
+    def setRigGroupStructure(self):  # baseRig.util --- rig hierachy structure set
         self.defaultGrp.createGroupNode()
         tempDCM = cmds.createNode('decomposeMatrix' , n = 'transform_DCM')
         cmds.connectAttr('move_CON.worldMatrix[0]' , '%s.inputMatrix' %tempDCM)
@@ -45,18 +45,18 @@ class path_rig():
         cmds.connectAttr('place_CON.globalScale' , 'transform_GRP.scaleZ')
         self.rotateController(self.worldCON)
 
-    def jointsOrient(self,jnt): # util --- joint orient 
+    def jointsOrient(self,jnt): # baseRig.util --- joint orient
         cmds.setAttr('%s.ry' %jnt , 90)
         self.z.zeroOutJoint(jnt)
 
-    def controllerScale(self, control, scaleValue ): # util --- controller scale modify
+    def controllerScale(self, control, scaleValue ): # baseRig.util --- controller scale modify
         controlerShapeName = cmds.listRelatives ( control, s=True )[0]
-        CRV_span_num = cmds.getAttr( controlerShapeName+'.spans' ) + cmds.getAttr( controlerShapeName+'.degree' )    
-        cmds.select ( control+'.cv[0:%s]' %(CRV_span_num)) 
+        CRV_span_num = cmds.getAttr( controlerShapeName+'.spans' ) + cmds.getAttr( controlerShapeName+'.degree' )
+        cmds.select ( control+'.cv[0:%s]' %(CRV_span_num))
         cmds.scale ( scaleValue, scaleValue, scaleValue, r=1 )
         cmds.select ( cl=1 )
-    
-    def matrixAttatch(self,parent,child,trs): # util
+
+    def matrixAttatch(self,parent,child,trs): # baseRig.util
         temp_MMX = cmds.createNode('multMatrix' , n = parent.replace(parent.split('_')[-1],'MMX'))
         temp_DCM = cmds.createNode('decomposeMatrix' , n = parent.replace(parent.split('_')[-1],'MMX'))
         cmds.connectAttr('%s.worldMatrix[0]' %parent,'%s.matrixIn[0]' %temp_MMX)
@@ -68,13 +68,13 @@ class path_rig():
         if 's' in trs:
             cmds.connectAttr('%s.outputScale' %temp_DCM , '%s.scale' %child)
         cmds.connectAttr('%s.parentInverseMatrix[0]' %child  , '%s.matrixIn[1]' %temp_MMX)
-        
-    def getDistance(self,pos1,pos2): # util
-        distance = ( (pos1[0]-pos2[0])**2 + (pos1[1]-pos2[1])**2 + (pos1[2]-pos2[2])**2 )**0.5 
+
+    def getDistance(self,pos1,pos2): # baseRig.util
+        distance = ( (pos1[0]-pos2[0])**2 + (pos1[1]-pos2[1])**2 + (pos1[2]-pos2[2])**2 )**0.5
         distance = round(distance,2)
         return distance
-        
-    def setSkinJoints(self,divRatio):  # util
+
+    def setSkinJoints(self,divRatio):  # baseRig.util
         self.skinBodySubJointList = list()
         self.skinBodyJointList = list()
         self.blendBodySubJointList = list()
@@ -98,7 +98,7 @@ class path_rig():
             cmds.delete(self.skinBodySubJointList[-1])
             del self.skinBodySubJointList[-1]
         else:
-            pass 
+            pass
         jointType = ['IK','Blend','Skin']
         for i in jointType:
             cmds.select([self.endJoint]+[self.topJoint],r=1)
@@ -123,7 +123,7 @@ class path_rig():
             cmds.parentConstraint(self.blendBodyJointList[i],self.skinBodyJointList[i],mo=1)
             cmds.parentConstraint(self.IKBodyJointList[i],self.blendBodyJointList[i],mo=1)
 
-    def nearestJointsList(self,basePos,objList): # util     # Recursive Funtion
+    def nearestJointsList(self,basePos,objList): # baseRig.util     # Recursive Funtion
         self.nDisList = list()
         disList = list()
         for x in range( len( objList ) ):
@@ -139,7 +139,7 @@ class path_rig():
             else:
                 pass
 
-    def setCustomDivJoints(self): # util set custum div joints
+    def setCustomDivJoints(self): # baseRig.util set custum div joints
         self.customBodyJointsList = list()
         cmds.select('*template_body*_JNT*',r=1)
         cmds.select([self.endJoint]+[self.topJoint],tgl=1)
@@ -155,8 +155,8 @@ class path_rig():
         for i in self.customBodyJointsList:
             jointPos = cmds.xform(i,ws=True, q=True, t=True)
             self.customBodyJointsPos.append(jointPos)
-            
-    def curveLenUvalue(self,obj,curve): # util   get curveLength and uValue
+
+    def curveLenUvalue(self,obj,curve): # baseRig.util   get curveLength and uValue
         self.localLengUval = list()
         tempDCM = cmds.createNode('decomposeMatrix')
         nearestNode = cmds.createNode('nearestPointOnCurve')
@@ -174,9 +174,9 @@ class path_rig():
         print 'objectPosition.length = "%s"' %getLength
         self.localLengUval.append(nearParam)
         self.localLengUval.append(getLength)
-        
-    def setStretchCurve(self): # stretch set 
-        # create bodyRig curve 
+
+    def setStretchCurve(self): # stretch set
+        # create bodyRig curve
         pathRig_crv = cmds.curve(p=self.customBodyJointsPos)
         self.pathBody_crv = cmds.rename(pathRig_crv ,'pathBody_CRV')
         self.pathBody_crvS = cmds.listRelatives(self.pathBody_crv , s=1)
@@ -205,15 +205,15 @@ class path_rig():
         locatorShapeList = list()
         for x in range( len( splineJoint ) ):
         # create defaultSet nodes
-            # create div ratio mmx 
-            temp_divRatio_MPD = cmds.createNode('multiplyDivide', name='divRatio_%s_MPD' %int(x+1)) 
+            # create div ratio mmx
+            temp_divRatio_MPD = cmds.createNode('multiplyDivide', name='divRatio_%s_MPD' %int(x+1))
             cmds.setAttr('%s.input1X' %temp_divRatio_MPD  , float(x))
             # create pointOnCurveInfo
-            POCI = cmds.createNode( 'pointOnCurveInfo', n = splineJoint[x].replace(splineJoint[x].split('_')[-1],'POCI')) 
+            POCI = cmds.createNode( 'pointOnCurveInfo', n = splineJoint[x].replace(splineJoint[x].split('_')[-1],'POCI'))
             self.stPOCI_list.append(POCI)
             # create curveLength2ParamU
             LOC = cmds.spaceLocator( name='%s_LOC' % splineJoint[x].replace( 'JNT', 'stCRV' ))
-            clp = cmds.createNode('curveLength2ParamU' , n = splineJoint[x].replace(splineJoint[x].split('_')[-1],'CLP')) 
+            clp = cmds.createNode('curveLength2ParamU' , n = splineJoint[x].replace(splineJoint[x].split('_')[-1],'CLP'))
             cmds.connectAttr('%s.outputX' %divRatio_MPD , '%s.input2X' %temp_divRatio_MPD)
             cmds.connectAttr('%s.worldSpace[0]' %self.pathBody_crvS[0] , '%s.inputCurve' %clp)
             cmds.connectAttr('%s.outputX'  %temp_divRatio_MPD , '%s.inputLength' %clp)
@@ -225,7 +225,7 @@ class path_rig():
             cmds.setAttr('%s.template' % LOC[0], 1)
             cmds.connectAttr( '%s.worldSpace[0]' %self.pathBody_crvS[0], '%s.inputCurve' % POCI )
         self.tangentNormalAxisSet()
-        
+
     def tangentNormalAxisSet(self):  # stretch locator attatch and twist setting
         # import var "self.stPOCI_list" , "stCRV_loc"
         self.upLoc_list = list()
@@ -265,7 +265,7 @@ class path_rig():
         cmds.addAttr(twistInput , ln='twistEnd' , at='double' , dv=0)
         cmds.setAttr('%s.twistEnd' %twistInput , e=True , k=True)
         count = 0
-        for i in range(len(self.twistLoc_list)): 
+        for i in range(len(self.twistLoc_list)):
             twistDiv = cmds.createNode('multiplyDivide' , n=self.twistLoc_list[i].replace(self.twistLoc_list[i].split('_')[-1],'MPD'))
             twistDivRev = cmds.createNode('multiplyDivide' , n=self.twistLoc_list[i].replace(self.twistLoc_list[i].split('_')[-1],'rev_MPD'))
             mdl = cmds.createNode('multDoubleLinear',n=self.twistLoc_list[i].replace(self.twistLoc_list[i].split('_')[-1],'MDL'))
@@ -286,7 +286,7 @@ class path_rig():
             cmds.connectAttr('%s.output' %ADL , '%s.rx' %self.twistLoc_list[i])
             count = count + 1
         cmds.parent(twistInput,'twist_GRP')
-        
+
     def upVecLocControlSet(self):  # body curve up vector setting
         self.upVecCon_list = list()
         self.upVecVisCrv = list()
@@ -315,7 +315,7 @@ class path_rig():
             self.upVecVisCurveSet(self.stCRV_loc[self.upLoc_list.index(i)],i) # upvecCurveVis
             cmds.connectAttr( '%s.upVecVis' %conName ,'%s.visibility' %upVecConName)
         cmds.parent(conGrp,'IKControl_GRP')
-        
+
     def upVecVisCurveSet(self,startName,endName): # make upVec vis curve
         crvName = cmds.curve( d=1, p=[(0,0,0),(0,0,0)], name = startName.replace( startName.split('_')[-1], 'CRV' ) )
         self.upVecVisCrv.append(crvName)
@@ -328,8 +328,8 @@ class path_rig():
         cmds.connectAttr( 'C_IK_body_upVec_CON.upVecVis' , '%s.visibility' %crvName)
         cmds.toggle(crvName,template=True)
         return crvName
-        
-    def headRigSet(self):  # head rigging 
+
+    def headRigSet(self):  # head rigging
         conName = 'C_FK_head_CON'
         controllerShape( conName, 'cube', 'yellow' )
         conSpaceGrp = cmds.group(conName , n = 'C_FK_head_space_NUL')
@@ -344,7 +344,7 @@ class path_rig():
         cmds.parentConstraint(fkJnt,blendJnt,mo=1)
         cmds.parentConstraint(blendJnt,skinJnt,mo=1)
         cmds.delete(cmds.parentConstraint('C_template_Head_JNT',conSpaceGrp,mo=0))
-        
+
         attatch_local_NUL = cmds.createNode('transform' , n='C_FK_head_attatch_local_NUL')
         attatch_local_LOC = cmds.spaceLocator(n='C_FK_head_attatch_local_LOC')[0]
         attatch_world_NUL = cmds.createNode('transform' , n='C_FK_head_attatch_world_NUL')
@@ -368,7 +368,7 @@ class path_rig():
         worldOut_MMX = cmds.createNode('multMatrix' , n='C_FK_head_attatch_worldOut_MMX')
         worldOut_DCM = cmds.createNode('decomposeMatrix' , n='C_FK_head_attatch_worldOut_DCM')
         attatch_PBD = cmds.createNode('pairBlend' , n='C_FK_head_attatch_PBD')
-        
+
         cmds.connectAttr('move_CON.worldMatrix[0]','%s.matrixIn[0]' %worldIn_MMX)
         cmds.connectAttr('%s.matrixSum' %worldIn_MMX, '%s.inputMatrix' %worldIn_DCM)
         cmds.connectAttr('%s.outputTranslate' %worldIn_DCM , '%s.translate' %attatch_world_NUL)
@@ -379,7 +379,7 @@ class path_rig():
         cmds.connectAttr('%s.matrixSum' %worldOut_MMX, '%s.inputMatrix' %worldOut_DCM)
         cmds.connectAttr('%s.parentInverseMatrix[0]' %attatch_world_NUL  , '%s.matrixIn[1]' %worldIn_MMX)
         cmds.connectAttr('%s.outputRotate' %worldOut_DCM , '%s.inRotate1' %attatch_PBD)
-        
+
         cmds.connectAttr('C_IK_sub_bodyTop_CON.worldMatrix[0]' , '%s.matrixIn[0]' %localIn_MMX)
         cmds.connectAttr('%s.matrixSum' %localIn_MMX, '%s.inputMatrix' %localIn_DCM)
         cmds.connectAttr('%s.outputTranslate' %localIn_DCM , '%s.translate' %attatch_local_NUL)
@@ -407,13 +407,13 @@ class path_rig():
         for i in self.customBodyJointsList:
             # IK attatch locator set
             loc = cmds.spaceLocator(n = i.replace(i.split('_')[-1],'LOC') )
-            locR = loc[0].split('_') 
+            locR = loc[0].split('_')
             locRn = cmds.rename(loc , locR[0]+'_IK_attatch_'+'%s_%s'%( locR[2], locR[3]))
             locRnS = cmds.listRelatives(locRn , s=1)
             null = cmds.group(n= locRn.replace('LOC','NUL'),r=1)
             self.IKcurveAttatchLOC.append(locRn)
             self.IKcurveAttatchNUL.append(null)
-            cmds.select(null,i,r=1) 
+            cmds.select(null,i,r=1)
             cmds.matchTransform(pos=1,rot=1)
             tempIndex = self.customBodyJointsList.index(i)
             cmds.connectAttr('%s.worldPosition[0]' %locRnS[0], '%s.controlPoints[%s]' %(self.pathBody_crvS[0],tempIndex))
@@ -442,12 +442,12 @@ class path_rig():
             if self.FKNull[-1] is not i:
                 cmds.parent( i, self.FKCon[self.FKNull.index(i)+1] )
         cmds.parent('C_FK_bodyTop_NUL','FKControl_GRP')
-        
-    def rootControlSet(self):  
+
+    def rootControlSet(self):
         # root control set
-        cmds.select('root_NUL','C_Skin_bodyTop_JNT',r=1) 
+        cmds.select('root_NUL','C_Skin_bodyTop_JNT',r=1)
         cmds.matchTransform(pos=1,rot=1)
-        self.controllerScale('root_CON',2.5) 
+        self.controllerScale('root_CON',2.5)
         root_space_NUL = cmds.createNode('transform' , n='root_space_NUL' , p='root_NUL')
         cmds.createNode('transform' , n='C_FK_bodyTop_root_NUL' , p='C_FK_bodyTop_NUL')
         cmds.parent(self.FKCon[-1],'C_FK_bodyTop_root_NUL')
@@ -500,17 +500,17 @@ class path_rig():
         cmds.parent(self.tempBodyJointList,'templateJoint_GRP')
         cmds.parent('C_template_Head_JNT','templateJoint_GRP')
         if cmds.getAttr('%s.tz' %self.tempBodySubJointList[-1]) == cmds.getAttr('%s.tz' %self.topJoint):
-            cmds.delete(self.tempBodySubJointList[-1]) 
-            del self.tempBodySubJointList[-1]       
+            cmds.delete(self.tempBodySubJointList[-1])
+            del self.tempBodySubJointList[-1]
         else:
-            pass 
-    
+            pass
+
     def pathCurveSet(self,plusLength):
         self.nearParam_list = list()
         self.getLength_list = list()
         self.pathCrv_attLoc_list = list()
         self.upPathLoc_list = list()
-        
+
         cmds.addAttr('root_CON' , ln='run' , at='double' , dv=0)
         cmds.setAttr('root_CON.run' , e=True , k=True)
         cmds.createNode('transform' , n = 'pathSet_GRP' , p='noneTransform_GRP')
@@ -556,7 +556,7 @@ class path_rig():
             cmds.connectAttr('%s.worldSpace[0]' %self.pathSet_crvShp, '%s.inputCurve' %poci)
             cmds.connectAttr('%s.outputParamU' %clp , '%s.parameter' %poci)
             cmds.connectAttr('%s.position' %poci , '%s.translate' %pathCrv_attLoc)
-        
+
         # reverse variable
         pathCrv_attLoc_list_rev_range = list()
         self.pathCrv_attLoc_list_rev = list() # pathCurve attatch Locator list reverse variable
@@ -594,7 +594,7 @@ class path_rig():
                 cmds.connectAttr('%s.matrixSum' %temp_MMX,'%s.inputMatrix' %temp_DCM)
                 cmds.connectAttr('%s.outputTranslate' %temp_DCM , '%s.translate' %self.FKNull_rev[self.pathCrv_attLoc_list_rev.index(k)])
                 cmds.connectAttr('%s.outputRotate' %temp_DCM , '%s.rotate' %self.FKNull_rev[self.pathCrv_attLoc_list_rev.index(k)])
-        # IKSub_loc_list , for curveVis locator 
+        # IKSub_loc_list , for curveVis locator
         self.IKSub_loc_list = list()
         for i in self.IKSubCon:
             IKSub_loc = cmds.spaceLocator(n = i.replace(i.split('_')[-1],'LOC'))[0]
@@ -604,19 +604,19 @@ class path_rig():
             cmds.toggle(IKSub_loc,template=True)
             cmds.hide(IKSub_loc)
         self.IKSub_loc_list.reverse()
-        # set upvec con 
-        self.upVecPathLocControlSet() 
-        # tangent constraint 
+        # set upvec con
+        self.upVecPathLocControlSet()
+        # tangent constraint
         for i in self.pathCrv_attLoc_list:
             cmds.tangentConstraint(self.pathSet_crv , i , aim=[0.0,0.0,1.0] , u=[0.0,1.0,0.0], wut='object',wuo='%s' %self.upPathLoc_list[self.pathCrv_attLoc_list_rev.index(i)])
         # set root matrix
-        self.addRootMatrix() 
+        self.addRootMatrix()
         # set node hierachy structure
         self.setNodeHierachy_second()
 
     def addRootMatrix(self):
         worldInverse_move_loc = cmds.spaceLocator(n = 'move_attatchRoot_LOC')[0]
-        cmds.select(worldInverse_move_loc,'root_CON',r=1) 
+        cmds.select(worldInverse_move_loc,'root_CON',r=1)
         cmds.matchTransform(pos=1,rot=1)
         cmds.parent(worldInverse_move_loc,'space_GRP')
         root_MMX = cmds.createNode('multMatrix' , n = 'move_attatchRoot_MMX')
@@ -646,7 +646,7 @@ class path_rig():
             cmds.parent(temp_loc,'upVecVisCurve_GRP')
             cmds.connectAttr( 'C_IK_body_upVec_CON.upVecVis'  ,'%s.visibility' %upVecConName)
             self.controllerScale(upVecConName, 0.5)
-        
+
     def makeLocOnCurve(self): # make locator on curve. it needs to select curve.
         locatorNull_list = list()
         selcv = cmds.ls(sl=True)
@@ -675,7 +675,7 @@ class path_rig():
         cmds.select(cl=True)
         control_GRP = cmds.createNode('transform' , n = 'pathControl_GRP')
         cmds.parent(locatorNull_list , control_GRP)
-                      
+
     def setNodeHierachy_first(self):
         cmds.createNode('transform' , n='noneTransform_attatch_GRP', p='auxillary_GRP')
         cmds.createNode('transform' , n='upVecVisCurve_GRP' , p='noneTransform_GRP')
@@ -689,27 +689,27 @@ class path_rig():
         cmds.parent(self.stCRV_loc,'noneTransform_attatch_GRP')
         cmds.parent(self.upVecVisCrv,'upVecVisCurve_GRP')
         cmds.parent(self.upLoc_list , 'attach_GRP')
-    
+
     def setNodeHierachy_second(self):
         cmds.parent(self.upPathLoc_list , 'upVecVisCurve_GRP')
         cmds.parent(self.pathCrv_attLoc_list, 'noneTransform_attatch_GRP')
         cmds.parent('pathSet_CRV' , 'pathSet_GRP')
-    
-    def setRig(self,skinDiv): 
+
+    def setRig(self,skinDiv):
         self.setCustomDivJoints() # customDiv joints set
         self.setSkinJoints(skinDiv)  # insert skin Joints Num
         self.setStretchCurve() # set stretch set
-        self.IKFKcontrolSet() # ik fk control set 
-        self.rootControlSet() # root control set 
-        self.headRigSet() # head rig 
-        self.setNodeHierachy_first()  # set node hierachy 
+        self.IKFKcontrolSet() # ik fk control set
+        self.rootControlSet() # root control set
+        self.headRigSet() # head rig
+        self.setNodeHierachy_first()  # set node hierachy
 
 """
 # command
 path = path_rig()
 path.createPathTempJoints()
-path.setBodyDivJoints(5) # insert default div joints num 
-path.setRig(15) # insert skin Div 
+path.setBodyDivJoints(5) # insert default div joints num
+path.setRig(15) # insert skin Div
 
 path.pathCurveSet(30) # path set  - insert add curve length
 path.makeLocOnCurve() # make con on curve / It needs to select pathCurve

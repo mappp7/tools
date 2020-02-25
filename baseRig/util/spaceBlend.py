@@ -1,8 +1,8 @@
 #encoding=utf-8
 
 import maya.cmds as cmds
-from util.defaultGroupNode import*
-from util.setUniqueName import*
+from baseRig.util.defaultGroupNode import*
+from baseRig.util.setUniqueName import*
 
 
 

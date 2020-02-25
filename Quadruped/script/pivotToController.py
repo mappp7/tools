@@ -1,5 +1,5 @@
-from util.controller import *
-from util.homeNul import *
+from baseRig.util.controller import *
+from baseRig.util.homeNul import *
 
 
 def pivotToControllerOP(mySide):
@@ -31,10 +31,10 @@ def pivotToControllerOP(mySide):
         cmds.parent( '%sShape' % CONT, pivotList[x], r=True, s=True )
         cmds.delete( CONT )
         ankleRollCON = cmds.rename( pivotList[x], pivotList[x].replace( 'PIVOT', 'CON' ) )
-        
-        
-        
-        
+
+
+
+
     # 2018/ 01.15 >>  taehoon : change controller hierarchy!!!
     cmds.parent( '%s_hindLeg_toeTab_NUL' % mySide, '%s_hindLeg_footTwist_CON' % mySide )
 
@@ -45,18 +45,17 @@ def pivotToControllerOP(mySide):
     myParent = '%s_rig_ball_JNT' % mySide
     myMainCon = '%s_ankleRoll_main_CON' % mySide
     myMainNul = '%s_ankleRoll_main_NUL' % mySide
-    
+
     myAimParnt = '%s_template_ankle_JNT' % mySide
     myAimUp = '%s_template_knee_JNT' % mySide
-    
+
     myCon = controllerShape( myMainCon.replace( 'main_CON', 'CON' ), 'cube', myColor )
     myNul = homeNul( myCon )
-    
+
     cmds.delete ( cmds.parentConstraint( myParent, myNul, mo=0 ) )
     cmds.delete ( cmds.aimConstraint ( myAimParnt, myNul, aim=( 1, 0, 0 ), u=( 0, 1, 0 ), wut='object', wuo=myAimUp ) )
-    
+
     cmds.parentConstraint( myParent, myNul, mo=1 )
     cmds.parentConstraint( myCon, myMainNul, mo=1 )
-	
+
     cmds.parent ( '%s_IK_ankle_SC_HDL' % mySide, myCon )
-    

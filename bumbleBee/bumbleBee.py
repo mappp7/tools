@@ -33,7 +33,7 @@ from baseRig.util.spaceBlend import *
 import json
 import sys
 import site
-site.addsitedir('C:\tools\tools\Quadruped\script')
+site.addsitedir('C:/tools/tools/Quadruped/script')
 import tuple as TP
 reload( TP )
 
@@ -246,7 +246,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         cmds.select( cl=True )
 
     def importTemplateJoint( self, *args ):
-        cmds.file( '/dexter/Cache_DATA/CRT/RiggingRnD/Quadruped/script/template.mb', i=True, type='mayaBinary', mergeNamespacesOnClash=False, rpr='clash', options='v=0', pr=True )
+        cmds.file( 'C:/tools/tools/Quadruped/script/template.mb', i=True, type='mayaBinary', mergeNamespacesOnClash=False, rpr='clash', options='v=0', pr=True )
         self.tailJointNum = int(self.ui.tailNum_SPB.text())
         root_joint = cmds.joint ( p=( 0, 0, 0 ), n='C_template_tail1_JNT' )
         cmds.parent ( root_joint, 'templateJoint_GRP' )
