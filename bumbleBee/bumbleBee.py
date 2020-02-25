@@ -11,7 +11,7 @@
 
 import os
 import maya.cmds as cmds
-import maya.mel as mel 
+import maya.mel as mel
 import maya.OpenMayaUI as omui
 
 from manual.biped.importTemplate import *
@@ -28,12 +28,12 @@ from util.zeroOut import *
 from util.controller import *
 from util.undoCommand import undo
 from util.path_rig import *
-from util.spaceBlend import * 
+from util.spaceBlend import *
 
 import json
 import sys
 import site
-site.addsitedir('/dexter/Cache_DATA/CRT/RiggingRnD/Quadruped/script')
+site.addsitedir('C:\tools\tools\Quadruped\script')
 import tuple as TP
 reload( TP )
 
@@ -63,7 +63,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         #self.qR = quadrupedRigClass()
 
 # connectSocket ---------------------------------------------------------------------------------------------------
-   
+
     def connectSocket(self):
         # biped
         self.ui.biped_temp_BTN.clicked.connect(self.importBipedTemplete)
@@ -98,14 +98,14 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         self.ui.add_snapSet_BTN.clicked.connect(self.addSnapSet)
         self.ui.movePVnull_BTN.clicked.connect(self.fix_cmd)
         self.ui.addSoftIK_BTN.clicked.connect(self.softStretchIK_set_cmd)
- 
+
     def checkToggle(self):
         if self.ui.advTailNum_CMB.currentText() == 'Normal':
             self.ui.advTailNum_SPB.setEnabled(False)
-        else:   
+        else:
             self.ui.advTailNum_SPB.setEnabled(True)
 # iconColor ---------------------------------------------------------------------------------------------------
-   
+
     def iconColor(self):
         setIconPath = '/dexter/Cache_DATA/CRT/riggingTeamShelf/bumbleBee/icon/'
         self.ui.zeroOut_BTN.setIcon(QtGui.QIcon('%szeroOut.jpg' %setIconPath))
@@ -133,11 +133,11 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         self.ui.setRig_BTN.setIcon(QtGui.QIcon('%ssetRig.jpg' %setIconPath))
         self.ui.pathCurveSet_BTN.setIcon(QtGui.QIcon('%spathCurveSet.jpg' %setIconPath))
         self.ui.makeLocOnCurve_BTN.setIcon(QtGui.QIcon('%smakeLocOnCurve.jpg' %setIconPath))
-    
+
 # biped ---------------------------------------------------------------------------------------------------
-    
+
     @undo
-    def importBipedTemplete(self): 
+    def importBipedTemplete(self):
         i = importTemplate()
         i.simpleBiped()
         self.setTailJointsCmd()
@@ -158,7 +158,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
     @undo
     def addSnapSet(self):
         addRigCommand()
-    
+
     @undo
     def zeroOut_cmd(self):
         z = zeroOut()
@@ -206,15 +206,15 @@ class uiMainWindow( QtWidgets.QMainWindow ):
     def controlerScale(self, controlerList, scaleValue ):
         for x in controlerList:
             controlerShapeName = cmds.listRelatives ( x, s=True )[0]
-            CRV_span_num = cmds. getAttr ( controlerShapeName+'.spans' )    
-            cmds.select ( x+'.cv[0:%s]' %(CRV_span_num)) 
+            CRV_span_num = cmds. getAttr ( controlerShapeName+'.spans' )
+            cmds.select ( x+'.cv[0:%s]' %(CRV_span_num))
             cmds.scale ( scale_value, scale_value, scale_value, r=1 )
         cmds.select ( cl=1 )
     @undo
-    def controlerRotate(self, controlerList, x, y, z ):        
+    def controlerRotate(self, controlerList, x, y, z ):
         for i in controlerList:
             controlerShapeName = cmds.listRelatives ( i, s=True )[0]
-            CRV_span_num = cmds. getAttr ( controlerShapeName+'.spans' ) 
+            CRV_span_num = cmds. getAttr ( controlerShapeName+'.spans' )
             cmds.select ( '%s.cv[0:%s]' % (i, CRV_span_num), r=1 )
             cmds.rotate ( x, y, z, os=1, ocp=1, r=1 )
             cmds.select ( cl=1 )
@@ -302,29 +302,29 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         add_SS_neck.add_SS_neckOP()
         import advance_neck
         advance_neck.neckAdvanveOP()
-      
+
     def spineRigOP( self, *args ):
         import ikSpine
-        ikSpine.ikSpineOP()    
+        ikSpine.ikSpineOP()
         import fkAddSpine
         fkAddSpine.fkAddSpineOP()
         import add_SS_spine
         add_SS_spine.add_SS_spineOP()
 
     def L_foreLegOP( self, *args ):
-        import L_foreLeg    
+        import L_foreLeg
         L_foreLeg.ForeLegOP()
 
     def R_foreLegOP( self, *args ):
-        import R_foreLeg 
-        R_foreLeg.ForeLegOP() 
-    
+        import R_foreLeg
+        R_foreLeg.ForeLegOP()
+
     def L_hindLegOP( self, *args ):
         self.createHindLegTempJoint('L')
         import L_ikHindLeg
         L_ikHindLeg.L_ikHindLegOP()
         import pivotToController
-        pivotToController.pivotToControllerOP('L')  
+        pivotToController.pivotToControllerOP('L')
 
     def R_hindLegOP( self, *args ):
         self.createHindLegTempJoint('R')
@@ -336,8 +336,8 @@ class uiMainWindow( QtWidgets.QMainWindow ):
     def tailOP( self, *args ):
         import advance_tail
         reload( advance_tail )
-        type = self.ui.advTailNum_CMB.currentText() 
-        jointNum = self.ui.advTailNum_SPB.text() 
+        type = self.ui.advTailNum_CMB.currentText()
+        jointNum = self.ui.advTailNum_SPB.text()
         advance_tail.tailOP(type,int(jointNum))
         #self.setAdvancedTailSysCmd()
 
@@ -353,13 +353,13 @@ class uiMainWindow( QtWidgets.QMainWindow ):
 
         addLocalSpace.rotateBlend( 'C_IK_neck1_CON','move_CON', 'C_IK_head_CON' )
         addLocalSpace.rotateBlend( 'C_IK_neck1_NUL','move_CON', 'C_IK_neck1_CON' )
-        addLocalSpace.rotateBlend( 'tail1_extra_NUL','move_CON', 'tail1_CON' ) 
+        addLocalSpace.rotateBlend( 'tail1_extra_NUL','move_CON', 'tail1_CON' )
 
     def create_skin_joint( self ):
         tempJoint_rootList = [ 'R_template_clavicle_JNT','C_template_root_JNT','C_template_neck1_JNT','L_template_clavicle_JNT','L_template_hip_JNT','R_template_hip_JNT', 'C_template_tail1_JNT' ]
         if self.ui.advTailNum_CMB.currentText() is not 'Normal':
             del tempJoint_rootList[-1]
-        for x in tempJoint_rootList:    
+        for x in tempJoint_rootList:
             IKJoint = x.replace( 'template', 'IK' )
             cmds.select ( IKJoint, hi=1 )
             IKJointList = cmds.ls ( sl=1 )
@@ -377,7 +377,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         cmds.parent('C_Skin_tail1_JNT','C_Skin_root_JNT')
 
 
-    def etc_set( self ):        
+    def etc_set( self ):
         ### attribute
         # sup con vis
         for x in range(8):
@@ -435,7 +435,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         ### Rotate controler
         self.controlerRotate( TP.rotate_con_list_A, 0, 0, -90 )
         self.controlerRotate( TP.rotate_con_list_B, -90, 0, 0 )
-        
+
         ### controler Color
         for x in TP.R_con_list:
             conShapeName = cmds.listRelatives ( x, s=1 )[0]
@@ -450,11 +450,11 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         for x in TP.scale_con_list:
             scale_value = 2
             CRV_shape_name = cmds.listRelatives (x, s=1)[0]
-            CRV_span_num = cmds. getAttr ( CRV_shape_name+'.spans' )    
-            cmds.select ( x+'.cv[0:%s]' %(CRV_span_num)) 
+            CRV_span_num = cmds. getAttr ( CRV_shape_name+'.spans' )
+            cmds.select ( x+'.cv[0:%s]' %(CRV_span_num))
             cmds.scale ( scale_value, scale_value, scale_value, r=1 )
 
-        ### controler Parent 
+        ### controler Parent
         if self.ui.advTailNum_CMB.currentText() == 'Normal':
             for x in range(2):
                 PL = TP.parent_list['PL'][x]
@@ -468,7 +468,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
                 for y in TP.parent_list['CL'][x]:
                     print y
                     cmds.parentConstraint ( PL, y, mo=1 )
-        ### hindLeg Parent 
+        ### hindLeg Parent
         cmds.setAttr ( 'L_rig_hip_JNT.inheritsTransform', 0 )
         cmds.setAttr ( 'R_rig_hip_JNT.inheritsTransform', 0 )
         itemList = [ '.sx', '.sy', '.sz' ]
@@ -476,7 +476,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
             for y in itemList:
                 cmds.connectAttr ( 'place_CON.globalScale', x+y )
 
-# util ---------------------------------------------------------------------------------------------------    
+# util ---------------------------------------------------------------------------------------------------
 
     @undo
     def addLocalSpacetoHandSub_cmd(self):  # biped
@@ -492,18 +492,18 @@ class uiMainWindow( QtWidgets.QMainWindow ):
     @undo
     def setBodyDivJoints_cmd(self):
         num = int(self.ui.setBodyDivJoints_SPB.text())
-        self.path.setBodyDivJoints(num)  # insert default div joints num 
+        self.path.setBodyDivJoints(num)  # insert default div joints num
     @undo
     def setRig_cmd(self):
         num = int(self.ui.setRig_SPB.text())
-        self.path.setRig(num) # insert skin Div 
+        self.path.setRig(num) # insert skin Div
     @undo
     def pathCurveSet_cmd(self):
         num = int(self.ui.pathCurveSet_SPB.text())
         self.path.pathCurveSet(30) # path set  - insert add curve length
     @undo
     def makeLocOnCurve_cmd(self):
-        self.path.makeLocOnCurve() 
+        self.path.makeLocOnCurve()
 
     def fitToRig_cmd(self):  # biped
         self.importCON_JSON()
@@ -516,7 +516,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         # load
         F = open( str(filePath[0]) )
         self.loadedData = json.load( F )
-        F.close() 
+        F.close()
 
         jsonKeys = self.loadedData.keys()
 
@@ -542,5 +542,3 @@ def OPEN():
     except: pass
     Window = uiMainWindow()
     Window.ui.show()
-
-    
