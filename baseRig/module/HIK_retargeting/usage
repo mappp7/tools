@@ -1,0 +1,10 @@
+import sys
+scriptDir = '/dexter/Cache_DATA/CRT/RiggingRnD/baseRig/module/HIK_retargeting'
+if not scriptDir in sys.path:
+    sys.path.append(scriptDir)
+
+
+import HIK_retargeting as HIKrt
+reload(HIKrt)
+
+HIKrt.OPEN()

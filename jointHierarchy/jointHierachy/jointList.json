@@ -1,0 +1,82 @@
+{
+    "jointList": {
+        "hipList": [
+            "C_Skin_hip_JNT", 
+            "C_Skin_spine1_JNT", 
+            "C_Skin_spine2_JNT", 
+            "C_Skin_spine3_JNT", 
+            "C_Skin_chest_JNT",
+	    "C_Skin_neck_JNT",
+	    "C_Skin_neckTwist_JNT",
+	    "C_Skin_neckTwist1_JNT",
+	    "C_Skin_neckTwist2_JNT",
+ 	    "C_Skin_head_JNT"
+        ],  
+	"shoulderList": [
+            "R_Skin_shoulder_JNT",
+	    "R_Skin_upArm_JNT",
+            "R_Skin_upArmTwist_JNT",
+            "R_Skin_upArmTwist1_JNT",
+            "R_Skin_upArmTwist2_JNT",
+            "R_Skin_upArmTwist3_JNT",
+            "R_Skin_upArmTwist4_JNT",
+            "R_Skin_foreArm_JNT",
+            "R_Skin_foreArmTwist_JNT",
+            "R_Skin_foreArmTwist1_JNT",
+            "R_Skin_foreArmTwist2_JNT",
+            "R_Skin_foreArmTwist3_JNT",
+            "R_Skin_foreArmTwist4_JNT",
+            "R_Skin_hand_JNT"
+        ],   
+
+	"indexList": [
+            "R_Skin_indexPalm_JNT",
+	    "R_Skin_index1_JNT",
+            "R_Skin_index2_JNT",
+            "R_Skin_index3_JNT"
+
+        ],     
+	"middleList": [
+            "R_Skin_middlePalm_JNT",
+	    "R_Skin_middle1_JNT",
+            "R_Skin_middle2_JNT",
+            "R_Skin_middle3_JNT"
+
+        ],                          
+
+	"ringList": [
+            "R_Skin_ringPalm_JNT",
+	    "R_Skin_ring1_JNT",
+            "R_Skin_ring2_JNT",
+            "R_Skin_ring3_JNT"
+	],
+        "pinkyList": [
+            "R_Skin_pinkyPalm_JNT",
+	    "R_Skin_pinky1_JNT",
+            "R_Skin_pinky2_JNT",
+            "R_Skin_pinky3_JNT"
+	],
+        "thumbList": [
+	    "R_Skin_thumb1_JNT",
+            "R_Skin_thumb2_JNT",
+            "R_Skin_thumb3_JNT"
+	],
+
+        "legList": [
+            "R_Skin_leg_JNT",
+	    "R_Skin_legTwist_JNT",
+            "R_Skin_legTwist1_JNT",
+            "R_Skin_legTwist2_JNT",
+            "R_Skin_legTwist3_JNT",
+            "R_Skin_legTwist4_JNT",
+	    "R_Skin_lowLeg_JNT",
+	    "R_Skin_lowLegTwist_JNT",
+	    "R_Skin_lowLegTwist1_JNT",
+	    "R_Skin_lowLegTwist2_JNT",
+	    "R_Skin_lowLegTwist3_JNT",
+            "R_Skin_lowLegTwist4_JNT",
+	    "R_Skin_foot_JNT",
+ 	    "R_Skin_ball_JNT"
+	]
+    }
+}
