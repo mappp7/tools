@@ -27,8 +27,8 @@ from Qt.QtGui import *
 from Qt.QtCore import *
 from Qt.QtWidgets import *
 
-from baseRig.util.undoCommand import undo
-from baseRig.util.homeNul import*
+from baseRigUtil.undoCommand import undo
+from baseRigUtil.homeNul import*
 
 # ui Path Setting
 basePath = os.path.abspath( __file__ + '/../' )

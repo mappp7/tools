@@ -1,0 +1,672 @@
+'''
+inputs:    poses       |num_poses| x |num_verts| x 3 matrix representing coordinates of vertices of each pose
+
+            rest_pose   |num_verts| x 3 numpy matrix representing the coordinates of vertices in rest pose
+
+            num_bones   Number of bones to initialize
+
+            iterations  Number of iterations to run the k-means algorithm
+
+
+
+return: A |num_bones| x |num_poses| x 4 x 3 matrix representing the stacked Rotation and Translation
+
+            for each pose, for each bone.
+
+        A |num_bones| x 3 matrix representing the translations of the rest bones.
+'''
+import os
+import json
+import maya.api.OpenMaya as om
+import maya.OpenMayaUI as omui
+import maya.cmds as cmds
+import maya.mel as mel
+import pymel.core as pm
+from Qt import QtGui, QtCore, QtWidgets, load_ui
+
+from Qt.QtGui import *
+from Qt.QtCore import *
+from Qt.QtWidgets import *
+from functools import partial
+
+basePath = os.path.abspath(__file__ + '/../')
+
+import numpy as np
+from scipy.optimize import lsq_linear
+from scipy.cluster.vq import vq, kmeans, whiten
+
+import time
+import math
+
+uiFile = os.path.join(basePath, 'DTSCtool.ui')
+
+class MtscTool(QtWidgets.QMainWindow):
+    def __init__(self, parent=None):
+        super(MtscTool, self).__init__(parent)
+        
+        self.ui = load_ui(uiFile)
+        self.ui.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+
+        # value
+        self.skincluster = None
+        self.boneList = list()
+        self.mesh = None
+        self.rest_pose = None
+        self.poses = None
+        self.boneTransform = None
+        self.finalBone = None
+        self.Weight = None
+        self.rest_bone =None 
+        
+        if self.ui.mesh_LED.text() :
+            self.mesh = self.ui.mesh_LED.text()
+        
+            skincluster = mel.eval('findRelatedSkinCluster("%s")'%self.mesh)
+        
+            self.skincluster = skincluster
+
+        self.setWindowTitle('MTSC_tool')
+        self.createConnections()
+
+    def createConnections(self):
+        
+        self.ui.boneList_BTN.clicked.connect(self.InsertBoneList)       
+        self.ui.mesh_BTN.clicked.connect(self.InsertMesh)
+        self.ui.updatePose_BTN.clicked.connect(self.updatePose)
+        
+        self.connect(self.ui.poses_LWG, SIGNAL('itemClicked(QListWidgetItem *)') , self.clickPoses)
+
+        self.ui.posesInsert_BTN.clicked.connect(self.addPoses)
+        self.ui.posesClear_BTN.clicked.connect(self.clearPoses)
+        
+        self.ui.both_BTN.clicked.connect(self.updateBothFunc)
+        self.ui.recordWeight_BTN.clicked.connect(self.recordWeight)
+
+    def isclose(self,x, y, rtol=1.e-5, atol=1.e-8):
+        return abs(x-y) <= atol + rtol * abs(y)
+
+    def euler_angles_from_rotation_matrix(self,R):
+        '''
+        From a paper by Gregory G. Slabaugh (undated),
+        "Computing Euler angles from a rotation matrix
+        '''
+        phi = 0.0
+        if self.isclose(R[2,0],-1.0):
+            theta = math.pi/2.0
+            psi = math.atan2(R[0,1],R[0,2])
+        elif self.isclose(R[2,0],1.0):
+            theta = -math.pi/2.0
+            psi = math.atan2(-R[0,1],-R[0,2])
+        else:
+            theta = -math.asin(R[2,0])
+            cos_theta = math.cos(theta)
+            psi = math.atan2(R[2,1]/cos_theta, R[2,2]/cos_theta)
+            phi = math.atan2(R[1,0]/cos_theta, R[0,0]/cos_theta)
+        
+        
+        return math.degrees(psi) , math.degrees(theta) , math.degrees(phi)
+    # Checks if a matrix is a valid rotation matrix.
+    def isRotationMatrix(self,R) :
+        Rt = np.transpose(R)
+        shouldBeIdentity = np.dot(Rt, R)
+        I = np.identity(3, dtype = R.dtype)
+        n = np.linalg.norm(I - shouldBeIdentity)
+        return n < 1e-6
+
+
+    # Calculates rotation matrix to euler angles
+    # The result is the same as MATLAB except the order
+    # of the euler angles ( x and z are swapped ).
+    def rotationMatrixToEulerAngles(self,R) :
+        
+        assert(self.isRotationMatrix(R))
+        
+        sy = math.sqrt(R[0,0] * R[0,0] +  R[1,0] * R[1,0])
+        
+        singular = sy < 1e-6
+
+        if  not singular :
+            x = math.atan2(R[2,1] , R[2,2])
+            y = math.atan2(-R[2,0], sy)
+            z = math.atan2(R[1,0], R[0,0])
+        else :
+            x = math.atan2(-R[1,2], R[1,1])
+            y = math.atan2(-R[2,0], sy)
+            z = 0
+
+        return np.array([math.degrees(x), math.degrees(y), math.degrees(z)])
+    '''
+    def matrix4x4_to_euler_xyz(self,mat):
+        	x = math.atan2(mat[1][2], mat[2][2])
+        y = -math.asin(mat[0][2])
+        z = math.atan2(mat[0][1], mat[0][0])
+        return [math.degrees(x), math.degrees(y), math.degrees(z)]
+    '''
+
+    def manual_codebook(self ,mayaMesh ,jointList):
+        sel = om.MSelectionList()
+        sel.add(mayaMesh)
+        dPath = sel.getDagPath(0)
+        mMesh = om.MFnMesh(dPath)
+        num = mMesh.numVertices
+        #fine skinCluster
+        skincluster = mel.eval('findRelatedSkinCluster("%s")'%mayaMesh)
+        # array codeBook
+        arrayL = []
+        correct_JList = []
+
+        for i in range(num) :
+            spct = cmds.skinPercent(skincluster , mayaMesh + '.vtx[' + str(i) + ']' , q=1 , value =1 )
+            # please do not paint skinweight
+            for x in range(len(spct)):
+                if spct[x] >= 0.6:
+                    arrayL.append(x)
+
+        codeBook = np.array(arrayL)
+        #correct joint Index
+
+        for y in range(len(jointList)):
+            b = cmds.connectionInfo(skincluster+'.matrix[' + str(y) + ']' , sfd = 1)
+            j = b.split('.')[0]
+            correct_JList.append(j)
+        
+        return codeBook , correct_JList
+
+    def kabsch(self,P, Q):
+    
+        if (P.size == 0 or Q.size == 0):
+            raise ValueError("Empty matrices sent to kabsch")
+        centroid_P = np.mean(P, axis=0) # mean(axis=0) is rows average return array[0.2 , 0.5, 0.4]
+        centroid_Q = np.mean(Q, axis=0)
+        P_centered = P - centroid_P                       # Center both matrices on centroid
+        Q_centered = Q - centroid_Q
+        H = P_centered.T.dot(Q_centered)                  # covariance matrix
+        U, S, V = np.linalg.svd(H)                        # SVD
+        R = U.dot(V).T                                    # calculate optimal rotation
+        if np.linalg.det(R) < 0:                          # correct rotation matrix for
+            V[2,:] *= -1                                  #  right-hand coordinate system
+            R = U.dot(V).T
+
+        t = centroid_Q - R.dot(centroid_P)                # translation vector
+
+        return np.vstack((R, t))
+
+
+    def initialize(self , poses, rest_pose, num_bones, iterations, mayaMesh=None, jointList=None):
+        
+        bones=[]
+        num_verts = rest_pose.shape[0] # shape mean array scale
+        num_poses = poses.shape[0]
+
+        bone_transforms = np.empty((num_bones, num_poses, 4, 3))   # [(R, T) for for each pose] for each bone
+                                                            # 3rd dim has 3 rows for R and 1 row for T
+
+        # Use k-means to assign bones to vertices
+        whitened = whiten(rest_pose)
+        codebook, _ = kmeans(whitened, num_bones)
+        rest_pose_corrected = np.empty((num_bones, num_verts, 3))  # Rest pose - mean of vertices attached to each bone
+
+        # confirm mode
+        if mayaMesh:
+            #rigid Skin
+            vert_assignments , bones = self.manual_codebook(mayaMesh , jointList)
+            boneArray = []
+            for i in bones :
+                boneArray.append(cmds.xform(i , q=1 , t=1 ,ws=1))
+
+            rest_bones_t = np.array(boneArray)
+            #rest_bones_t = np.empty((num_bones , 3))
+
+            for bone in range(num_bones):
+                #rest_bones_t[bone] = np.mean(rest_pose[vert_assignments == bone] , axis = 0)
+                rest_bones_t[bone] = np.array(boneArray[bone])
+                rest_pose_corrected[bone] = rest_pose - rest_bones_t[bone]
+
+                for pose in range(num_poses):
+
+                    bone_transforms[bone, pose] = self.kabsch(rest_pose_corrected[bone, vert_assignments == bone], poses[pose, vert_assignments == bone])
+
+        else:
+            # Compute initial random bone transformations
+
+            vert_assignments, _ = vq(whitened, codebook) # Bone assignment for each vertex (|num_verts| x 1)
+            rest_bones_t = np.empty((num_bones , 3))                    # Translations for bones at rest pose
+
+            for bone in range(num_bones):
+                rest_bones_t[bone] = np.mean(rest_pose[vert_assignments == bone] , axis = 0)
+                rest_pose_corrected[bone] = rest_pose - rest_bones_t[bone]
+
+                for pose in range(num_poses):
+
+                    bone_transforms[bone, pose] = self.kabsch(rest_pose_corrected[bone, vert_assignments == bone], poses[pose, vert_assignments == bone])
+
+        for it in range(iterations):
+            
+            # Re-assign bones to vertices using smallest reconstruction error from all poses
+            constructed = np.empty((num_bones, num_poses, num_verts, 3)) # |num_bones| x |num_poses| x |num_verts| x 3
+            for bone in range(num_bones):
+                Rp = bone_transforms[bone,:,:3,:].dot((rest_pose - rest_bones_t[bone]).T).transpose((0, 2, 1)) # |num_poses| x |num_verts| x 3
+                # R * p + T
+                constructed[bone] = Rp + bone_transforms[bone, :, np.newaxis, 3, :]
+            errs = np.linalg.norm(constructed - poses, axis=(1, 3)) # position value average
+            
+            vert_assignments = np.argmin(errs, axis=0)
+            
+
+            # For each bone, for each pose, compute new transform using kabsch
+            for bone in range(num_bones):
+                
+                rest_bones_t[bone] = np.mean(rest_pose[vert_assignments == bone] , axis= 0)
+                
+                rest_pose_corrected[bone] = rest_pose - rest_bones_t[bone]
+
+                for pose in range(num_poses):
+                    P = rest_pose_corrected[bone, vert_assignments == bone]
+                    Q = poses[pose, vert_assignments == bone]
+                    
+                    if (P.size == 0 or Q.size == 0):
+                        print 'Skip Iteration'
+                    else:
+
+                        bone_transforms[bone, pose] = self.kabsch(P, Q)
+
+        # jointList is correct Index Joint
+
+        return bone_transforms, rest_bones_t , bones
+    
+    def update_weight_map(self,bone_transforms, rest_bones_t, poses, rest_pose, sparseness):
+    
+        num_verts = rest_pose.shape[0]
+        num_poses = poses.shape[0]
+        num_bones = bone_transforms.shape[0]
+
+        W = np.empty((num_verts, num_bones))
+        
+        for v in range(num_verts):
+            # For every vertex, solve a least squares problem
+            Rp = np.empty((num_bones, num_poses, 3))
+            for bone in range(num_bones):
+                Rp[bone] = bone_transforms[bone,:,:3,:].dot(rest_pose[v] - rest_bones_t[bone]) # |num_bones| x |num_poses| x 3
+            # R * p + T
+            Rp_T = Rp + bone_transforms[:, :, 3, :] # |num_bones| x |num_poses| x 3
+            A = Rp_T.transpose((1, 2, 0)).reshape((3 * num_poses, num_bones)) # 3 * |num_poses| x |num_bones|
+            b = poses[:, v, :].reshape(3 * num_poses) # 3 * |num_poses| x 1
+
+            # Bounds ensure non-negativity constraint and kind of affinity constraint
+            w = lsq_linear(A, b, bounds=(0, 1), method='bvls').x  # |num_bones| x 1
+            w /= np.sum(w) # Ensure that w sums to 1 (affinity constraint)
+
+            # Remove |B| - |K| bone weights with the least "effect"
+            effect = np.linalg.norm((A * w).reshape(num_poses, 3, num_bones), axis=1) # |num_poses| x |num_bones|
+            effect = np.sum(effect, axis=0) # |num_bones| x 1
+            num_discarded = max(num_bones - sparseness, 0)
+            effective = np.argpartition(effect, num_discarded)[num_discarded:] # |sparseness| x 1
+
+            # Run least squares again, but only use the most effective bones
+            A_reduced = A[:, effective] # 3 * |num_poses| x |sparseness|
+            w_reduced = lsq_linear(A_reduced, b, bounds=(0, 1), method='bvls').x # |sparseness| x 1
+            w_reduced /= np.sum(w_reduced) # Ensure that w sums to 1 (affinity constraint)
+
+            w_sparse = np.zeros(num_bones)
+            w_sparse[effective] = w_reduced
+            w_sparse /= np.sum(w_sparse) # Ensure that w_sparse sums to 1 (affinity constraint)
+
+            W[v] = w_sparse
+
+        return W
+
+    
+    def update_bone_transforms(self,W, bone_transforms, rest_bones_t, poses, rest_pose ,mesh ):
+    
+        num_bones = W.shape[1]
+        num_poses = poses.shape[0]
+        num_verts = W.shape[0]
+        epsilon = 0.5
+        bone = None
+        vert_assignments = None
+
+        for pose in range(num_poses):
+            for bone in range(num_bones):
+                
+                if np.sum(np.square(W[:,bone])) >= epsilon:
+                    # Represents the points in rest pose without this rest bone's translation
+                    p_corrected = rest_pose - rest_bones_t[bone] # |num_verts| x 3
+
+                    # Calculate q_i for all vertices by equation (6)
+                    constructed = np.empty((num_bones, num_verts, 3)) # |num_bones| x |num_verts| x 3
+                    for bone2 in range(num_bones):
+                        # can't use p_corrected before because we want to correct for every bone2 distinctly
+                        Rp = bone_transforms[bone2,pose,:3,:].dot((rest_pose - rest_bones_t[bone2]).T).T # |num_verts| x 3
+                        # R * p + T
+                        constructed[bone2] = Rp + bone_transforms[bone2, pose, 3, :]
+                    # w * (R * p + T)
+                    constructed = constructed.transpose((1, 0, 2)) * W[:, :, np.newaxis] # |num_verts| x |num_bones| x 3
+                    constructed = np.delete(constructed, bone, axis=1) # |num_verts| x |num_bones-1| x 3
+                    q = poses[pose] - np.sum(constructed, axis=1) # |num_verts| x 3
+                    
+                    # Calculate p_star, q_star, p_bar, and q_bar for all verts by equation (8)
+                    p_star = np.sum(np.square(W[:, bone, np.newaxis]) * p_corrected, axis=0) # |num_verts| x 3 => 3 x 1
+                    p_star /= np.sum(np.square(W[:, bone])) # 3 x 1
+
+                    q_star = np.sum(W[:, bone, np.newaxis] * q, axis=0) # |num_verts| x 3 => 3 x 1
+                    q_star /= np.sum(np.square(W[:, bone])) # 3 x 1
+                    p_bar = p_corrected - p_star # |num_verts| x 3
+                    q_bar = q - W[:, bone, np.newaxis] * q_star # |num_verts| x 3
+
+                    # Perform SVD by equation (9)
+                    P = (p_bar * W[:, bone, np.newaxis]).T # 3 x |num_verts|
+                    Q = q_bar.T # 3 x |num_verts|
+
+                    U, S, V = np.linalg.svd(np.matmul(P, Q.T))
+
+                    # Calculate rotation R and translation t by equation (10)
+                    
+                    R = np.matmul(U,V).T
+                    
+                    #R = U.dot(V).T # 3 x 3
+                    
+                    t = q_star - R.dot(p_star) # 3 x 1
+                    
+                    bone_transforms[bone, pose, :3, :] = R
+                    #bone_transforms[bone, pose, 1, 1] *= -1
+                    bone_transforms[bone, pose, 3, :] = t
+                    
+                    
+                else:
+                    #re_initialize
+                    confirmed = []
+                    vert_closest_20 = []
+                    rest_pose_corrected = np.empty((num_bones, num_verts, 3))
+                    '''
+                    constructed = np.empty((num_bones, num_poses, num_verts, 3))
+
+                    for bone2 in range(num_bones):
+                        Rp = bone_transforms[bone2,:,:3,:].dot((rest_pose - rest_bones_t[bone2]).T).transpose((0, 2, 1)) # |num_poses| x |num_verts| x 3
+                        # R * p + T
+                        constructed[bone2] = Rp + bone_transforms[bone2, :, np.newaxis, 3, :]
+                    
+                    errs = np.linalg.norm(constructed - poses ,axis= (1,3)) # norm is vector length [numbone] x [numVerts] x 3
+                    large = None
+                    largest_vert_errs = None
+                    largeMax = None
+                    
+                    for x in range(num_bones):
+                        if not largest_vert_errs: 
+                            large = np.linalg.norm(errs[x],axis=-1)
+                            largeMax = np.max(large)
+                            largest_vert_errs =  np.argmax(large)
+                        else:
+                            if largeMax < np.max(np.linalg.norm(errs[x] ,axis=-1)):
+                                large = np.linalg.norm(errs[x] ,axis=-1) 
+                                largeMax = np.max(large)
+                                largest_vert_errs =  np.argmax(large)
+                            else:
+                                largest_vert_errs = largest_vert_errs
+                    
+                    print large
+                    #largest_vert_errs =  np.argmax(errs[bone])
+                    print largest_vert_errs
+                    '''
+                    p_corrected = rest_pose[np.newaxis, :, :] - rest_bones_t[:, np.newaxis, :] # |num_bones| x |num_verts| x 3
+                    constructions = np.empty((num_bones, num_poses, num_verts, 3)) # |num_bones| x |num_poses| x |num_verts| x 3
+                    for bone_ in range(num_bones):
+                        # When you are a vectorizing GOD
+                        constructions[bone_] = np.einsum('ijk,lk->ilj', bone_transforms[bone_, :, :3, :], p_corrected[bone_]) # |num_poses| x |num_verts| x 3
+                    constructions += bone_transforms[:, :, np.newaxis, 3, :] # |num_bones| x |num_poses| x |num_verts| x 3
+                    constructions *= (W.T)[:, np.newaxis, :, np.newaxis] # |num_bones| x |num_poses| x |num_verts| x 3
+                    
+                    errors = poses - np.sum(constructions, axis=0) # |num_poses| x |num_verts| x 3
+                    largest_vert_errs = np.argmax(np.linalg.norm(errors[pose], axis=-1))
+                    print np.linalg.norm(errors[pose], axis=-1)
+                    print largest_vert_errs
+                    
+                    cmds.select(mesh+'.vtx[%s]' %largest_vert_errs)
+                    mel.eval("PolySelectTraverse 1;");mel.eval("PolySelectTraverse 1;");
+                    verts_close_set = cmds.ls(sl=1 , fl=1)
+                    for i in verts_close_set:
+                        confirmed.append(i.split('vtx[')[-1].split(']')[0])
+                    
+                    for x in range(num_verts):
+                        if str(x) in confirmed:
+                            vert_closest_20.append(1)
+                        else:
+                            vert_closest_20.append(0)
+
+                    vert_assignments_ = np.array(vert_closest_20)
+
+                    rest_bones_t[bone] = np.mean(rest_pose[vert_assignments_ == 1] , axis= 0)
+                    
+                    rest_pose_corrected[bone] = rest_pose - rest_bones_t[bone]
+
+                    for pose2 in range(num_poses):
+
+                        bone_transforms[bone, pose2] = self.kabsch(rest_pose_corrected[bone, vert_assignments_ == 1], poses[pose2, vert_assignments_ == 1])
+            '''
+            # flip normal
+            constructed = np.empty((num_bones, num_poses, num_verts, 3))
+            
+            for bone2 in range(num_bones):
+                Rp = bone_transforms[bone2,:,:3,:].dot((rest_pose - rest_bones_t[bone2]).T).transpose((0, 2, 1)) # |num_poses| x |num_verts| x 3
+                # R * p + T
+                constructed[bone] = Rp + bone_transforms[bone, :, np.newaxis, 3, :]
+            '''
+                
+        return bone_transforms , rest_bones_t
+
+    def MTSC(self , poses, rest_pose, num_bones, iterations = 5 , max_iterations = 5 ,sparseness=4 ,mayaMesh = None , jointList = None):
+        start_time = time.time()
+        
+        if mayaMesh and jointList:
+            bone_transforms, rest_bones_t ,finalBone = self.initialize(poses, rest_pose, num_bones , iterations , mayaMesh , jointList)
+        else:
+            bone_transforms, rest_bones_t ,finalBone = self.initialize(poses, rest_pose, num_bones , iterations)
+        ip = 90 / max_iterations
+        
+        for p in range(max_iterations):
+
+            W = self.update_weight_map(bone_transforms, rest_bones_t, poses, rest_pose, sparseness)
+            
+            bone_transforms , rest_bones_t = self.update_bone_transforms(W, bone_transforms, rest_bones_t, poses, rest_pose ,self.mesh)
+            print("Reconstruction error:", self.reconstruction_err(poses, rest_pose, bone_transforms, rest_bones_t, W))
+            self.ui.inprogress_PGB.setValue(10 + ip * p)
+
+        end_time = time.time()
+        print end_time
+        
+        # final bone is correct index joint
+        
+        return W, bone_transforms, rest_bones_t ,finalBone
+    
+    def updateMTSC(self ,mode,poses, rest_pose, num_bones, max_iterations = 5 ,sparseness=4 ,mayaMesh = None , jointList = None):
+        if mode ==0 :
+            if self.Weight:
+                WeightArray = np.array(self.Weight)
+                
+                for p in range(max_iterations):
+                    self.ui.inprogress_PGB.setValue(10 * p) 
+                    bone_transforms , rest_bones_t = self.update_bone_transforms(WeightArray, self.boneTransform, self.rest_bone, poses, rest_pose ,self.mesh)
+                    print("Reconstruction error:", self.reconstruction_err(poses, rest_pose, bone_transforms, self.rest_bone, WeightArray))
+        else:
+            pass
+        self.ui.inprogress_PGB.setValue(0)
+        return bone_transforms
+
+
+    def reconstruction_err(self,poses, rest_pose, bone_transforms, rest_bones_t, W):
+
+        num_bones = bone_transforms.shape[0]
+        num_verts = W.shape[0]
+        num_poses = poses.shape[0]
+        # Points in rest pose without rest bone translations
+        p_corrected = rest_pose[np.newaxis, :, :] - rest_bones_t[:, np.newaxis, :] # |num_bones| x |num_verts| x 3
+        constructions = np.empty((num_bones, num_poses, num_verts, 3)) # |num_bones| x |num_poses| x |num_verts| x 3
+        for bone in range(num_bones):
+            # When you are a vectorizing GOD
+            constructions[bone] = np.einsum('ijk,lk->ilj', bone_transforms[bone, :, :3, :], p_corrected[bone]) # |num_poses| x |num_verts| x 3
+        constructions += bone_transforms[:, :, np.newaxis, 3, :] # |num_bones| x |num_poses| x |num_verts| x 3
+        constructions *= (W.T)[:, np.newaxis, :, np.newaxis] # |num_bones| x |num_poses| x |num_verts| x 3
+        
+        errors = poses - np.sum(constructions, axis=0) # |num_poses| x |num_verts| x 3
+        return np.mean(np.linalg.norm(errors, axis=2))
+
+
+    def InsertBoneList(self):
+        sel = cmds.ls(sl=1)
+        if sel:            
+            self.ui.boneList_LED.setText(str(sel))
+            self.boneList = sel
+        else:
+            print 'please select Joints'
+            self.ui.boneList_LED.clear()
+            self.boneList = None
+
+        return self.boneList
+        
+
+    def InsertMesh(self):
+        sel = cmds.ls(sl=1)
+        if len(sel) == 1 :
+            sel = sel[0]
+            self.ui.mesh_LED.setText(sel)
+            self.mesh = sel
+            selectionLs = om.MGlobal.getActiveSelectionList()
+            self.rest_pose = np.array(om.MFnMesh(selectionLs.getDagPath(0)).getPoints(om.MSpace.kWorld))[:, :3]
+            
+            
+            #find skinCluster
+            skincluster = mel.eval('findRelatedSkinCluster("%s")'%self.mesh)
+            if skincluster:
+                self.skincluster = skincluster
+            
+        else:
+            print 'please select one head rest pose mesh' 
+            self.ui.mesh_LED.clear()
+            self.mesh = None
+
+        
+        return self.rest_pose ,self.mesh , self.skincluster
+        
+    def addPoses(self):
+        items = list()
+        for i in xrange(self.ui.poses_LWG.count()):
+            items.append(self.ui.poses_LWG.item(i))
+
+        posesMesh = list()
+        if items:
+            posesMesh += items
+        posesMesh += cmds.ls(sl=1)
+        self.ui.poses_LWG.clear()
+        for na in posesMesh:
+            if not na in items:
+                self.ui.poses_LWG.addItems([na])
+        selectionLs = om.MGlobal.getActiveSelectionList()
+        num_poses = selectionLs.length()
+        self.poses = np.array([om.MFnMesh(selectionLs.getDagPath(i)).getPoints(om.MSpace.kWorld) for i in range(num_poses)])[:, :, :3]
+        
+    def clearPoses(self):
+        self.poses = None
+        self.ui.poses_LWG.clear()
+    
+    def clickPoses(self , item):
+
+        row = self.ui.poses_LWG.currentRow()
+        
+        for i,na in enumerate(self.finalBone):
+
+            #rotation = self.matrix4x4_to_euler_xyz(self.boneTransform[i][row][:3,:])
+            rotation = self.euler_angles_from_rotation_matrix(self.boneTransform[i][row][:3,:])
+            #rotation = self.rotationMatrixToEulerAngles(self.boneTransform[i][row][:3,:])
+            trans = self.boneTransform[i][row][3,:]
+
+            print self.boneTransform[i][row]
+            cmds.xform(na , ws=1 , t = trans , ro = rotation)
+       
+
+    def updateBothFunc(self):
+        self.ui.inprogress_PGB.setValue(0)
+        
+        iterations = self.ui.initIteration_SPB.value()
+        self.ui.inprogress_PGB.setValue(3)
+        sparseness = self.ui.maxInfluence_SPB.value()
+        self.ui.inprogress_PGB.setValue(6)
+        maxIterations = self.ui.updateIteration_SPB.value()
+        self.ui.inprogress_PGB.setValue(10)
+        
+        num_bones = len(self.boneList)
+        W, bone_transforms, rest_bones_t ,self.finalBone = self.MTSC(self.poses, self.rest_pose ,num_bones ,iterations , maxIterations , sparseness ,self.mesh ,self.boneList)
+        
+        mel.eval("skinCluster -e  -ub %s"%self.mesh)
+        for rbone in range(len(rest_bones_t)):
+            cmds.xform(self.finalBone[rbone] , ws=1 ,t=rest_bones_t[rbone])
+        cmds.select(self.finalBone , self.mesh)
+        mel.eval("SmoothBindSkin;")
+        
+        tvdict = {}
+        preX = None
+        for x in range(len(W)):
+            listClear = []
+            for i,na in enumerate(self.finalBone):
+                tp = (na,W[x][i])
+                listClear.append(tp)
+            preX = x
+            tvdict[preX] = listClear
+
+        for x in range(len(W)): 
+            cmds.skinPercent(self.skincluster , '{name}.vtx[{num}]'.format(name = self.mesh , num = x) , transformValue = tvdict[x] )
+        
+        self.boneTransform = bone_transforms
+        self.Weight = W
+        self.rest_bone = rest_bones_t
+
+        self.ui.skinCluster_LED.setText(self.skincluster)
+
+        self.ui.updatePose_BTN.setEnabled(1)        
+        #self.ui.updateWeight_BTN.setEnabled(1)  
+        self.ui.inprogress_PGB.setValue(0)
+    
+    def recordWeight(self):
+        weightList = []
+
+        lis_ = cmds.ls(sl=1)[0]
+        sel = om.MSelectionList()
+        sel.add(lis_)
+        dPath = sel.getDagPath(0)
+        mMesh = om.MFnMesh(dPath)
+        num = mMesh.numVertices
+
+        skincluster = mel.eval('findRelatedSkinCluster("%s")'%lis_)
+        self.ui.skinCluster_LED.setText(skincluster)
+
+        for i in range(num):
+            block = cmds.skinPercent(skincluster , lis_ + '.vtx[{}]'.format(i) , q=True , value = True )
+            weightList.append(block)
+            self.ui.weight_LWG.addItem(str(block))
+        self.Weight = weightList
+    
+    def updatePose(self):
+        self.ui.inprogress_PGB.setValue(0)
+        
+        sparseness = self.ui.maxInfluence_SPB.value()
+        self.ui.inprogress_PGB.setValue(6)
+        maxIterations = self.ui.updateIteration_SPB.value()
+        self.ui.inprogress_PGB.setValue(10)  
+
+        num_bones = len(self.boneList)
+        bone_transforms = self.updateMTSC(0,self.poses, self.rest_pose ,num_bones , maxIterations , sparseness ,self.mesh ,self.boneList)
+        self.boneTransform = bone_transforms
+    
+    
+
+
+
+def OPEN():
+    global Window
+    try:
+        Window.close()
+        Window.deleteLater()
+    except:
+        pass
+
+    Window = MtscTool()
+
+    Window.ui.show()
