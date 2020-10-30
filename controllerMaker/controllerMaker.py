@@ -195,15 +195,15 @@ class uiMainWindow( QtWidgets.QMainWindow ):
         for i in sel:
             jointName = i
             if len(self.temp_CON) == 1:
-                Control = cmds.duplicate(self.temp_CON, n= jointName.replace(jointName.split('_')[-1],'CON'))
+                Control = cmds.duplicate(self.temp_CON, n= jointName.replace(jointName.split('_')[-1],'ctl'))
             else:
-                Control = cmds.circle(nr=(1,0,0),c=(0,0,0),r=1, n= jointName.replace(jointName.split('_')[-1],'CON'))
+                Control = cmds.circle(nr=(1,0,0),c=(0,0,0),r=1, n= jointName.replace(jointName.split('_')[-1],'ctl'))
                 cmds.DeleteHistory(Control[0])
             cmds.setAttr("%sShape.overrideEnabled" %Control[0], 1)
             cmds.setAttr("%sShape.overrideColor" %Control[0], 17)
             cmds.DeleteHistory(Control[0])
             cmds.group( Control[0] )
-            nullGroup = (cmds.rename(jointName.replace(jointName.split('_')[-1],'NUL')))
+            nullGroup = (cmds.rename(jointName.replace(jointName.split('_')[-1],'ctl_G')))
             fkController.append("%s" %Control[0])
             fkNullGroup.append("%s" %nullGroup)
             cmds.delete(cmds.parentConstraint(jointName,nullGroup, w=True))
@@ -217,10 +217,10 @@ class uiMainWindow( QtWidgets.QMainWindow ):
     def homeNull(self):
         sel = cmds.ls(sl=True)
         for i in sel:
-            if 'CON' in i:
+            if 'ctl' in i:
                 homeNul( i )
             else:
-                homeNul( i , i+'_NUL' )
+                homeNul( i , i+'_ctl_G' )
 
     def crvConnect(self):
         sel = cmds.ls(sl=True)
@@ -356,7 +356,7 @@ class uiMainWindow( QtWidgets.QMainWindow ):
                 self.chooseConShape(n)
                 selMakeCON = cmds.ls(sl=True)
                 cmds.delete(cmds.parentConstraint(temp_sel[i],selMakeCON,mo=0,w=1))
-                cmds.rename('%s_CON' %temp_sel[i])
+                cmds.rename('%s_ctl' %temp_sel[i])
                 self.homeNull()
         else:
             self.chooseConShape(n)
