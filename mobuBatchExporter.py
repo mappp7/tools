@@ -60,11 +60,14 @@ class MainUI(widgets.QWidget):
         self.buildUI()
         self.defaultSet()
         self.connectSignal()
-
         self.fingerExtract = ["thumb_04_r","index_04_r","middle_04_r","ring_04_r","pinky_04_r",
                             "thumb_04_l","index_04_l","middle_04_l","ring_04_l","pinky_04_l"]
         
+        self.weaponPlotList = ["ik_hand_gun_root" , "ik_hand_gun" ,"ik_hand_p_l" ,"ik_hand_l" , "ik_hand_p_r" , "ik_hand_r"]
         self.armExtract = ["clavicle_l" , "clavicle_r" , "spine_04_extra02_r" , "spine_04_extra01_l"]
+        self.check_characterize = ['pelvis','clavicle_l','upperarm_l','lowerarm_l','hand_l','calf_l','thigh_l','foot_l']
+
+
     def loadUIWidget(self, uiFileName, parent=None):
         loader = QtUiTools.QUiLoader()
         uiFile = QtCore.QFile(uiFileName)
@@ -95,16 +98,34 @@ class MainUI(widgets.QWidget):
             confirm_len = confirm_.split(":")
             if len(confirm_len) > 1 :
                 self.n_s = confirm_len[0]+":"
+
     # Default UI setting 
+    def handleButton(self,state,checkbox):
+    
+        if state == 2:
+            for ii,name in enumerate(self.checkBoxList):
+                if checkbox == name:
+                    modifiers = widgets.QApplication.keyboardModifiers()
+                    if modifiers == QtCore.Qt.ShiftModifier:
+                        if self.stack != None:
+                            if self.stack < ii:
+                                for iii in range(self.stack , ii+1):
+                                    self.checkBoxList[iii].setChecked(True)
+                                
+                        else:
+                            self.stack = ii
+                    else:
+                        self.stack = ii
+                        
     def defaultSet(self):
-        self.fail_stack = 0
+        
         self.stack = None
         
         self.checkState = 0
         self.current_OutputPath = None
         self.BAKE_BONE = "root"
         self.n_s = ""
-        self.weaponPlotList = ["ik_hand_gun_root" , "ik_hand_gun" ,"ik_hand_p_l" ,"ik_hand_l" , "ik_hand_p_r" , "ik_hand_r"]
+        
         self.AssetName = None
         save_path = QtCore.QDir.homePath()
         self.buPath = os.path.join(save_path , "MOBU_TEMP_PATH.json")
@@ -134,7 +155,9 @@ class MainUI(widgets.QWidget):
         self.ui.FbxList_TWG.setHorizontalHeaderLabels(["/", "Takes Name","Progress"])
 
         for i,v in enumerate(self.listTakeName):
+            
             ckbox = widgets.QCheckBox()
+            print(ckbox)
             ckbox.setStyleSheet("QCheckBox::indicator { width:20px; height: 20px;} QCheckBox::indicator::checked {image: url(Z:/P4V/LLL/LllArt/Animation/Script/Asset/icon/checkBox.png);} QCheckBox::indicator::unchecked {image: url(Z:/P4V/LLL/LllArt/Animation/Script/Asset/icon/uncheckBox.png);}")
             ckbox.setChecked(True)
             self.checkBoxList.append(ckbox)
@@ -164,23 +187,7 @@ class MainUI(widgets.QWidget):
             name.stateChanged.connect(lambda state , checkbox = self.checkBoxList[ii]: self.handleButton(state, checkbox))
         for i ,name in enumerate(self.lineEdit2List):
             name.textChanged.connect(lambda: self.textChange(i))
-        
-    def handleButton(self,state,checkbox):
-        
-        if state == 2:
-            for ii,name in enumerate(self.checkBoxList):
-                if checkbox == name:
-                    modifiers = widgets.QApplication.keyboardModifiers()
-                    if modifiers == QtCore.Qt.ShiftModifier:
-                        if self.stack != None:
-                            if self.stack < ii:
-                                for iii in range(self.stack , ii+1):
-                                    self.checkBoxList[iii].setChecked(True)
-                                
-                        else:
-                            self.stack = ii
-                    else:
-                        self.stack = ii
+    
                   
     def textChange(self , i):
         for i,take in enumerate(FBSystem().Scene.Takes):
@@ -235,24 +242,39 @@ class MainUI(widgets.QWidget):
         return asset
 
     def SelectBranch(self,topModel):
+        
         for childModel in topModel.Children:
             self.SelectBranch(childModel)
         topModel.Selected = True
         topModel.PropertyList.Find("Show").Data = True
 
-    def RootBranchPlot(self):
-        self.ClearSelModel()
-        rootM = FBFindModelByLabelName("root")
-        self.SelectBranch(rootM)
-        self.PlotSelected()
-        self.ClearSelModel()
-
     def SelectBranchFalse(self,topModel):
         for childModel in topModel.Children:
             self.SelectBranchFalse(childModel)
         topModel.Selected = False
-        
 
+    def SelectBranchDelete(self,topModel):
+        self.ClearSelModel()
+        self.SelectBranch(topModel)
+        self.delete_selected_objects()
+        
+    def delete_selected_objects(self):
+        
+        selected_models = FBModelList()
+        FBGetSelectedModels(selected_models)
+        
+        # Iterate through selected models and delete each one
+        for model in selected_models:
+            model.FBDelete()
+
+    def RootBranchPlot(self):
+        self.ClearSelModel()
+        rootM = FBFindModelByLabelName(self.n_s + "root")
+        self.SelectBranch(rootM)
+        self.PlotSelected()
+        self.ClearSelModel()
+
+    
     def UE5Renamer(self,boneName):
         ignoreList = []
         matchArr = [('Skin_',''),
@@ -335,30 +357,9 @@ class MainUI(widgets.QWidget):
 
         TheChar.PlotAnimation(FBCharacterPlotWhere.kFBCharacterPlotOnControlRig, myPlotOptions)      
         del(TheChar , myPlotOptions ) 
-    def SelectPWL(self):
-        selectList = ['Root', 'C_Skin_Pelvis_JNT', 'C_Skin_Spine00_JNT', 'L_Skin_ClavicleRoot_JNT', 'L_Skin_ClavicleRoll_JNT', 
-                      'L_Skin_Clavicle_JNT', 'L_Skin_UpArm_JNT','L_Skin_MidArm_JNT', 'L_Skin_LowArm_JNT', 'L_Skin_Hand_JNT', 'L_Skin_Thumb00_JNT', 
-                      'L_Skin_Thumb01_JNT', 'L_Skin_Thumb02_JNT', 'L_Skin_Thumb03_JNT', 'L_Weapon_JNT', 'L_Skin_Index00_JNT', 'L_Skin_Index01_JNT', 
-                      'L_Skin_Index02_JNT', 'L_Skin_Index03_JNT', 'L_Skin_Middle00_JNT', 'L_Skin_Middle01_JNT', 'L_Skin_Middle02_JNT', 
-                      'L_Skin_Middle03_JNT', 'R_Skin_ClavicleRoot_JNT', 'R_Skin_ClavicleRoll_JNT', 'R_Skin_Clavicle_JNT', 'R_Skin_UpArm_JNT',
-                      'R_Skin_MidArm_JNT', 'R_Skin_LowArm_JNT', 'R_Skin_Hand_JNT', 'R_Weapon_JNT', 'R_Skin_Thumb00_JNT', 'R_Skin_Thumb01_JNT', 
-                      'R_Skin_Thumb02_JNT', 'R_Skin_Thumb03_JNT', 'R_Skin_Index00_JNT', 'R_Skin_Index01_JNT', 'R_Skin_Index02_JNT', 'R_Skin_Index03_JNT', 
-                      'R_Skin_Middle00_JNT', 'R_Skin_Middle01_JNT', 'R_Skin_Middle02_JNT', 'R_Skin_Middle03_JNT', 'C_Skin_Door_JNT', 'L_Skin_Door_JNT', 
-                      'R_Skin_Door_JNT', 'C_Skin_Door_Slide1_JNT', 'C_Skin_Door_Slide2_JNT', 'R_Skin_Door_00_JNT', 'R_Skin_Door_01_JNT', 
-                      'R_Skin_Door_02_JNT', 'L_Skin_Door_00_JNT', 'L_Skin_Door_01_JNT', 'L_Skin_Door_02_JNT', 'C_Skin_F_Door_00_JNT', 
-                      'C_Skin_F_Door_01_JNT', 'C_Skin_F_Door_02_JNT', 'R_Skin_F_Door_JNT', 'L_Skin_F_Door_JNT', 'L_Skin_Thigh_JNT', 'L_Skin_MidCalf_JNT', 
-                      'L_Skin_Calf_JNT', 'L_Skin_Foot_JNT', 'L_Skin_Ball_JNT', 'R_Skin_Thigh_JNT', 'R_Skin_MidCalf_JNT', 'R_Skin_Calf_JNT', 
-                      'R_Skin_Foot_JNT', 'R_Skin_Ball_JNT', 'C_IK_Foot_Root', 'L_IK_Foot', 'R_IK_Foot', 'C_IK_Hand_Gun_Spine', 'C_IK_Hand_Gun', 
-                      'C_IK_Hand_Gun_Offset', 'L_IK_Hand_P', 'L_IK_Hand', 'R_IK_Hand_P', 'R_IK_Hand']
-        for i in selectList:
-            i = self.UE5Renamer(i)
-            
-            model = FBFindModelByLabelName(i)
-            model.Selected = True
-        rootM = FBFindModelByLabelName("root")
-        rootM.PropertyList.Find("Show").Data = True
+    
 
-
+        
     def sectionClickedFunc(self,index = 0):
         if index != 2:
             if self.checkBoxList:
@@ -406,7 +407,7 @@ class MainUI(widgets.QWidget):
         with open(self.buPath , 'w' ) as f:
             json.dump(json_object, f, indent=2)
 
-    def checkConfirm(self):
+    def check_takeList(self):
         takeList = []
         if self.checkBoxList:
             for i,na in enumerate(self.checkBoxList):
@@ -457,16 +458,15 @@ class MainUI(widgets.QWidget):
         
         self.ClearSelModel()
         
-        if not self.characterMode == "PWL":
-            rootM = FBFindModelByLabelName("root")
-            self.SelectBranch(rootM)
+
+        rootM = FBFindModelByLabelName("root")
+        self.SelectBranch(rootM)
+        if not self.characterMode == "PWL":       
             for i in self.fingerExtract:
                 i = FBFindModelByLabelName(i)
                 if i:
                     i.Selected=False
-        else:
-            self.SelectPWL()
-        
+ 
         
         if os.path.isfile(lSaveChrAnim):
             os.chmod( lSaveChrAnim, stat.S_IWRITE )
@@ -474,7 +474,7 @@ class MainUI(widgets.QWidget):
         lApp.FileSave(lSaveChrAnim , lSaveOptions)
         
         if headSecondary:
-            if not self.characterMode == "PWL":
+            if FBFindModelByLabelName("spine_04"):
                 lSaveChrAnim_head = lSavePath + lSaveFileName + "_head.fbx"
                 self.ClearSelModel()
             
@@ -491,16 +491,7 @@ class MainUI(widgets.QWidget):
         FBSystem().Scene.Evaluate()
         
         del(lSystem , lApp,lSaveTakeNameCurrent,lSaveOptions)
-    
-    def TwistSearch(self,node):
-        if node.ClassName() == 'FBModelSkeleton':
-            if node.Name.find("twist") != -1:
-                node.Selected = True
-        for child in node.Children:
-            self.TwistSearch(child)
-    
 
-    
     def save_constraint_states(self):
         
         constraint_states = {}
@@ -605,13 +596,90 @@ class MainUI(widgets.QWidget):
                     break
         return matchBool
 
+    def on_constraints_active_for_extrabone(self):
+
+        bone1 = "spine_04_extra01_l"
+        bone2 = "spine_04_extra02_r"
+        bone1_ = FBFindModelByLabelName(bone1)
+        bone2_ = FBFindModelByLabelName(bone2)
+               
+        for constraint in FBSystem().Scene.Constraints:
+            ref_count = constraint.ReferenceGetCount(0) 
+            for i in range(ref_count):
+                ref = constraint.ReferenceGet(0, i)
+                if ref == bone1_ or  bone2_:
+                    if constraint.Active == True:
+                        constraint.Active = False
+
+    def off_constraints_active_for_extrabone(self):
+
+        bone1 = "spine_04_extra01_l"
+        bone2 = "spine_04_extra02_r"
+        bone1_ = FBFindModelByLabelName(bone1)
+        bone2_ = FBFindModelByLabelName(bone2)
+               
+        for constraint in FBSystem().Scene.Constraints:
+            ref_count = constraint.ReferenceGetCount(0) 
+            for i in range(ref_count):
+                ref = constraint.ReferenceGet(0, i)
+                if ref == bone1_ or  bone2_:
+                    if constraint.Active == False:
+                        constraint.Active = True
+                    
+    
+
+    
+    def create_parent_constraint(self,target_name, source_name):
+        
+        target = FBFindModelByLabelName(target_name)
+        source = FBFindModelByLabelName(source_name)
+        
+        parent_constraint = FBConstraintManager().TypeCreateConstraint('Parent/Child')
+        if parent_constraint:
+
+            parent_constraint.ReferenceAdd(0, source)  # 소스 추가 (Parent 역할)
+            parent_constraint.ReferenceAdd(1, target)  # 타겟 추가 (Child 역할)
+
+            parent_constraint.Snap = True
+            parent_constraint.Active = True
+        return parent_constraint
+
+            
+    def set_world_transform_direct(self,source_bone, target_bone):
+    
+        world_translation = FBVector3d()
+        world_rotation = FBVector3d()
+        world_scaling = FBVector3d()
+        
+        source_bone.GetVector(world_translation, FBModelTransformationType.kModelTranslation, True)
+        source_bone.GetVector(world_rotation, FBModelTransformationType.kModelRotation, True)
+        source_bone.GetVector(world_scaling, FBModelTransformationType.kModelScaling, True)
+        
+        parent_matrix = FBMatrix()
+        if target_bone.Parent:
+            target_bone.Parent.GetMatrix(parent_matrix, FBModelTransformationType.kModelTransformation)
+        else:
+            parent_matrix.Identity()
+
+        parent_inverse = FBMatrix()
+        FBMatrixInverse(parent_inverse, parent_matrix)
+
+        world_translation_4d = FBVector4d(world_translation[0], world_translation[1], world_translation[2], 1.0)
+        local_translation_4d = FBVector4d()
+        FBVectorMatrixMult(local_translation_4d, parent_inverse, world_translation_4d)
+        
+        local_translation = FBVector3d(local_translation_4d[0], local_translation_4d[1], local_translation_4d[2])
+        
+        target_bone.Translation.Data = local_translation
+        target_bone.Rotation.Data = world_rotation
+        
     def doPlot(self):
         if self.current_OutputPath:
             result = self.checkInitPose()
             if result:
                 
                 self.indexingTake = []
-                takeList = self.checkConfirm()
+                takeList = self.check_takeList()
                 #indexing takeList 
                 for i,na in enumerate(FBSystem().Scene.Takes):
                     for x in takeList:
@@ -639,23 +707,50 @@ class MainUI(widgets.QWidget):
     def doExport(self):
 
         if self.current_OutputPath:
-            if FBFindModelByLabelName(self.n_s + "spine_04"):
-                self.characterMode = "CHAR"
-            else:
+            # 나중에 어차피 다시 만듬.
+            if FBFindModelByLabelName(self.n_s + "ik_foot_root"):
+                ik_foot_rootM = FBFindModelByLabelName(self.n_s + "ik_foot_root")
+                ik_hand_gun_rootM = FBFindModelByLabelName(self.n_s + "ik_hand_gun_root")
+                self.SelectBranchDelete(ik_foot_rootM)
+                self.SelectBranchDelete(ik_hand_gun_rootM)
+
+            TheChar = FBApplication().CurrentCharacter
+
+            # Get the list of bones characterized by the character
+            bone_names = []
+            check_temp_list = []
+            # Iterate through standard character bones
+            for bone_id in FBBodyNodeId.values:
+                bone_model = TheChar.GetModel(FBBodyNodeId(bone_id))
+                if bone_model:
+                    bone_names.append(bone_model.Name)
+            
+            for i in self.check_characterize:
+                if not i in bone_names:
+                    check_temp_list.append(i)
+            if check_temp_list:
                 self.characterMode = "PWL"
+            else:
+                self.characterMode = "CHAR"
+
             if self.characterMode == "CHAR":
-                TheChar = FBApplication().CurrentCharacter
+                
                 TheChar.ActiveInput = False
                 self.RootBranchPlot()
-                
+
                 result = self.checkInitPose()
                 constraint_states = self.save_constraint_states()
                 self.disable_all_constraints()
+
             elif self.characterMode == "PWL":
                 result = True
                 
             else:
                 result = False
+            
+            
+            # result O : init pose exists / result X : init pose not exists in excel file
+            
             if result:
                 if self.ui.additive_CBX.isChecked():
                     additiveOp = 0
@@ -663,7 +758,7 @@ class MainUI(widgets.QWidget):
                     additiveOp = 1
                 
                 self.indexingTake = []
-                takeList = self.checkConfirm()
+                takeList = self.check_takeList()
                 #indexing takeList 
                 for i,na in enumerate(FBSystem().Scene.Takes):
                     for x in takeList:
@@ -700,80 +795,102 @@ class MainUI(widgets.QWidget):
                         ar.boneLockBake()
                         
                         if ind == 0 :
-                            if not self.characterMode == "PWL": 
-                                
+                            
+                            if self.characterMode == "CHAR":
                                 RTE.ReadyToExport(["root"],True)
-
+                                
+                            else:
+                                RTE.ReadyToExport(["root"],True,True,False)
+                                
                         self.setProgress(self.progressList[i] , 12)
 
                         self.setProgress(self.progressList[i] , 28)
                         
-                        if not self.characterMode == "PWL":
-                            if additiveOp:
-                                rootModel = FBFindModelByLabelName("root")
-                                RTE.FindSnapWeapon("root")
-
-                                self.setProgress(self.progressList[i] , 34)
+                        rootModel = FBFindModelByLabelName("root")
+                        
+                        # only ik foot bake not ik hand bake
+                        if additiveOp:
                             
-                                self.ClearSelModel()
-                                self.setProgress(self.progressList[i] , 46)
-                                
-                                self.SelectBranch(rootModel)
+                            RTE.FindSnapWeapon("root")
 
-                                self.setProgress(self.progressList[i] , 58)
-                                self.PlotSelected()
-                                self.setProgress(self.progressList[i] , 62)
-                                self.ClearSelModel()
-                            else:
-                                rootModel = FBFindModelByLabelName("root")
-                                self.ClearSelModel()
-                                
-                                self.setProgress(self.progressList[i] , 46)
-                                self.SelectBranch(rootModel)
-                                for removeJ in self.weaponPlotList:
-                                    removeJ = FBFindModelByLabelName(removeJ)
-                                    removeJ.Selected = False
-                                self.PlotSelected()
+                            self.setProgress(self.progressList[i] , 34)
+                        
+                            self.ClearSelModel()
+                            self.setProgress(self.progressList[i] , 46)
+                            
+                            self.SelectBranch(rootModel)
 
-                                for name in self.weaponPlotList:
-                                    object  = FBFindModelByLabelName(name)
-                                    object.Translation.SetAnimated(True)
-                                    object.Rotation.SetAnimated(True)
-                                    mainAnim = object.AnimationNode
-                                    
-                                    for transformAnimNode in mainAnim.Nodes:
-                                        for axisAnimNode in transformAnimNode.Nodes:
-                                            axisAnimNode.FCurve.EditClear()
-                                    
-                                    for transformAnimNode in mainAnim.Nodes:
-                                        for axisAnimNode in transformAnimNode.Nodes:
-                                            if transformAnimNode.Name == "Lcl Translation" and axisAnimNode.Name == "X":
-                                                axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Translation[0])
-                                            if transformAnimNode.Name == "Lcl Translation" and axisAnimNode.Name == "Y":
-                                                axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Translation[1])
-                                            if transformAnimNode.Name == "Lcl Translation" and axisAnimNode.Name == "Z":
-                                                axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Translation[2])
-                                            if transformAnimNode.Name == "Lcl Rotation" and axisAnimNode.Name == "X":
-                                                axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Rotation[0])
-                                            if transformAnimNode.Name == "Lcl Rotation" and axisAnimNode.Name == "Y":
-                                                axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Rotation[1])
-                                            if transformAnimNode.Name == "Lcl Rotation" and axisAnimNode.Name == "Z":
-                                                axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Rotation[2])
-                                            FBSystem().Scene.Evaluate()
-                                            
-                                self.setProgress(self.progressList[i] , 62)
-                                self.ClearSelModel()
-                        else:
-                            self.SelectPWL()
+                            self.setProgress(self.progressList[i] , 58)
                             self.PlotSelected()
+                            self.setProgress(self.progressList[i] , 62)
+                            self.ClearSelModel()
+                        else:
+                           
+                            self.ClearSelModel()
+                            self.setProgress(self.progressList[i] , 46)
+                            self.SelectBranch(rootModel)
+                            for removeJ in self.weaponPlotList:
+                                removeJ = FBFindModelByLabelName(removeJ)
+                                removeJ.Selected = False
+                            self.PlotSelected()
+
+                            for name in self.weaponPlotList:
+                                object  = FBFindModelByLabelName(name)
+                                object.Translation.SetAnimated(True)
+                                object.Rotation.SetAnimated(True)
+                                mainAnim = object.AnimationNode
+                                
+                                for transformAnimNode in mainAnim.Nodes:
+                                    for axisAnimNode in transformAnimNode.Nodes:
+                                        axisAnimNode.FCurve.EditClear()
+                                
+                                for transformAnimNode in mainAnim.Nodes:
+                                    for axisAnimNode in transformAnimNode.Nodes:
+                                        if transformAnimNode.Name == "Lcl Translation" and axisAnimNode.Name == "X":
+                                            axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Translation[0])
+                                        if transformAnimNode.Name == "Lcl Translation" and axisAnimNode.Name == "Y":
+                                            axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Translation[1])
+                                        if transformAnimNode.Name == "Lcl Translation" and axisAnimNode.Name == "Z":
+                                            axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Translation[2])
+                                        if transformAnimNode.Name == "Lcl Rotation" and axisAnimNode.Name == "X":
+                                            axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Rotation[0])
+                                        if transformAnimNode.Name == "Lcl Rotation" and axisAnimNode.Name == "Y":
+                                            axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Rotation[1])
+                                        if transformAnimNode.Name == "Lcl Rotation" and axisAnimNode.Name == "Z":
+                                            axisAnimNode.KeyAdd(FBTime(0,0,0,0),object.Rotation[2])
+                                        FBSystem().Scene.Evaluate()
+                                        
+                            self.setProgress(self.progressList[i] , 62)
+                            self.ClearSelModel()
+                        
                         self.setProgress(self.progressList[i] , 79)
                         self.SetPreRotation(1)
                         #Double Plot
                         self.setProgress(self.progressList[i] , 88)
-                        if self.ui.headanimation_CBX.isChecked():           
+                        
+                        #spine_04 extra bone bake
+                        if not self.ui.itemanimation_CBX.isChecked():
+                            self.on_constraints_active_for_extrabone()
+                            
+                            parent_constraint1 = self.create_parent_constraint("weapon_l", "spine_04_extra01_l")
+                            parent_constraint2 = self.create_parent_constraint("weapon_r", "spine_04_extra02_r")
+                            
+                            self.ClearSelModel()
+                            FBFindModelByLabelName("spine_04_extra01_l").Selected = True
+                            FBFindModelByLabelName("spine_04_extra02_r").Selected = True
+                            self.PlotSelected()
+                            self.ClearSelModel()
+                            
+                            parent_constraint1.FBDelete()
+                            parent_constraint2.FBDelete()
+                            self.off_constraints_active_for_extrabone()
+                        
+                        if self.ui.headanimation_CBX.isChecked():
                             self.export_Animation_CurrentTake(take_bu,True)
                         else:
                             self.export_Animation_CurrentTake(take_bu,False)
+                        
+                        
                         self.setProgress(self.progressList[i] , 93)
                         self.setProgress(self.progressList[i] , 98)
 
@@ -783,13 +900,17 @@ class MainUI(widgets.QWidget):
                         take_.Name = take_bu
                         self.setProgress(self.progressList[i] , 100)
                         FBSystem().Scene.Evaluate()
-                    if not self.characterMode == "PWL": 
+                    if self.characterMode == "CHAR": 
                         
                         self.restore_constraint_states(constraint_states)
 
-                        if additiveOp:
+                    if additiveOp:
+                        if self.characterMode == "CHAR": 
                             RTE.ClearSets(['IK_Gun_Set'])
                             RTE.ClearSets(['Twist_Set'])
+                        else:
+                            RTE.ClearSets(['IK_Gun_Set'])
+                    
                     if self.n_s != "":
                         char_root.ProcessNamespaceHierarchy(FBNamespaceAction.kFBConcatNamespace, self.n_s.split(':')[0])
                     
@@ -817,6 +938,7 @@ for character in FBSystem().Scene.Characters:
 
 if len(CharInScene)>1:
     for i in CharInScene:
+        print(i)
         if i.find(":") == -1:
             FBMessageBox( 'Warning', 'More than one character must have a namespace.', "Ok" )
             status = False
